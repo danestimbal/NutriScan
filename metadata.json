@@ -1,0 +1,6 @@
+{
+  "name": "NutriScan",
+  "description": "Food Transparency & Allergen Radar - Decode deceptive food labels, spot hidden allergens instantly, and personalize dietary guardrails with medical-grade clarity.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

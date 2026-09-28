@@ -1,0 +1,90 @@
+{
+  "entities": {
+    "userProfile": {
+      "title": "UserProfile",
+      "description": "User clinical dietary profile, allergen radar sensitivities, and sensory alert preferences.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "displayName": { "type": "string", "maxLength": 100 },
+        "email": { "type": "string", "maxLength": 255 },
+        "activeRestrictions": { "type": "array" },
+        "watchlist": { "type": "array" },
+        "sentrySettings": { "type": "object" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["uid", "displayName"]
+    },
+    "foodProduct": {
+      "title": "FoodProduct",
+      "description": "Verified commercial and artisanal food items with parsed ingredient transcripts and allergen tagging.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "barcode": { "type": "string", "maxLength": 32, "pattern": "^[0-9]+$" },
+        "name": { "type": "string", "maxLength": 150 },
+        "brand": { "type": "string", "maxLength": 100 },
+        "category": { "type": "string", "maxLength": 100 },
+        "netWeight": { "type": "string", "maxLength": 50 },
+        "nutriScore": { "type": "string", "maxLength": 2, "enum": ["A", "B", "C", "D", "E"] },
+        "novaGroup": { "type": "number" },
+        "transparencyScore": { "type": "number" },
+        "allergensDetected": { "type": "array" },
+        "ingredientsVerbatim": { "type": "string", "maxLength": 5000 },
+        "isVerified": { "type": "boolean" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["barcode", "name", "brand"]
+    },
+    "scanLog": {
+      "title": "ScanLog",
+      "description": "Personal product scan telemetry, timestamps, and real-time hazard detection matches.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "barcode": { "type": "string", "maxLength": 32 },
+        "productName": { "type": "string", "maxLength": 150 },
+        "brand": { "type": "string", "maxLength": 100 },
+        "verdict": { "type": "string", "enum": ["SAFE", "WARNING", "HAZARD"] },
+        "allergensMatched": { "type": "array" },
+        "confidence": { "type": "number" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["userId", "barcode", "productName", "verdict"]
+    },
+    "additivePolicy": {
+      "title": "AdditivePolicy",
+      "description": "Regulatory chemical rules, E-code thresholds, and ban directives managed in the admin engine.",
+      "type": "object",
+      "properties": {
+        "eCode": { "type": "string", "maxLength": 20, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "maxLength": 100 },
+        "description": { "type": "string", "maxLength": 1000 },
+        "isEnforced": { "type": "boolean" },
+        "enforcedCount": { "type": "number" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["eCode", "name", "isEnforced"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/userProfile" },
+      "description": "User dietary profiles and sensor settings, restricted to the authenticated owner."
+    },
+    "/products/{productId}": {
+      "schema": { "$ref": "#/entities/foodProduct" },
+      "description": "Global food registry products searchable and readable by all users, updated by staff."
+    },
+    "/users/{userId}/scans/{scanId}": {
+      "schema": { "$ref": "#/entities/scanLog" },
+      "description": "User specific scan feed logs and dietary audit history."
+    },
+    "/additivePolicies/{eCode}": {
+      "schema": { "$ref": "#/entities/additivePolicy" },
+      "description": "Admin regulated food additive policies and scanning sensitivity flags."
+    }
+  }
+}
