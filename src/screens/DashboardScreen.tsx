@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { NutritionHistoryChart } from '../components/NutritionHistoryChart';
+import { ResearchMetricsPanel } from '../components/ResearchMetricsPanel';
 
 export const DashboardScreen: React.FC = () => {
   const {
@@ -12,11 +14,22 @@ export const DashboardScreen: React.FC = () => {
   } = useApp();
 
   const [activeFilter, setActiveFilter] = useState<'all' | 'safe' | 'warnings' | 'severe'>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
   const filteredProducts = products.filter((prod) => {
-    if (activeFilter === 'safe') return prod.nutriScore === 'A' && prod.allergensDetected.length === 0;
-    if (activeFilter === 'warnings') return prod.allergensDetected.length > 0 && prod.nutriScore !== 'D';
-    if (activeFilter === 'severe') return prod.allergensDetected.includes('Peanut Flour') || prod.nutriScore === 'D';
+    // Safety status filter
+    if (activeFilter === 'safe' && !(prod.nutriScore === 'A' && prod.allergensDetected.length === 0)) return false;
+    if (activeFilter === 'warnings' && !(prod.allergensDetected.length > 0 && prod.nutriScore !== 'D')) return false;
+    if (activeFilter === 'severe' && !(prod.allergensDetected.includes('Peanut Flour') || prod.nutriScore === 'D')) return false;
+
+    // Category filter (Figure 3 in IngreGuide RS-IV Plan)
+    if (selectedCategory === 'all') return true;
+    const catLower = prod.category.toLowerCase();
+    if (selectedCategory === 'drinks') return catLower.includes('drink') || catLower.includes('beverage');
+    if (selectedCategory === 'snacks') return catLower.includes('snack') || catLower.includes('bar') || catLower.includes('chip');
+    if (selectedCategory === 'dairy') return catLower.includes('dairy') || catLower.includes('milk');
+    if (selectedCategory === 'bakery') return catLower.includes('bakery') || catLower.includes('bread');
+    if (selectedCategory === 'pantry') return catLower.includes('pantry') || catLower.includes('sauce');
     return true;
   });
 
@@ -25,15 +38,15 @@ export const DashboardScreen: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
         {/* Top Greeting Banner & Live Shield */}
         <div className="relative overflow-hidden rounded-3xl bg-white p-6 sm:p-8 border border-slate-100 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="absolute -right-16 -top-16 w-64 h-64 bg-[#f7fee7] rounded-full blur-3xl pointer-events-none opacity-80"></div>
+          <div className="absolute -right-16 -top-16 w-64 h-64 bg-[#eef2ff] rounded-full blur-3xl pointer-events-none opacity-80"></div>
           <div className="flex flex-col gap-2 z-10">
             <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-2xl sm:text-3xl font-extrabold text-[#0f172a] tracking-tight">
                 Good morning, {userProfile.displayName}!
               </h1>
-              <div className="inline-flex items-center gap-1.5 bg-[#ecfccb] px-3 py-1 rounded-full">
-                <span className="w-2 h-2 rounded-full bg-[#84cc16] animate-ping"></span>
-                <span className="font-mono-tech text-xs text-[#65a30d] font-bold">
+              <div className="inline-flex items-center gap-1.5 bg-[#e0e7ff] px-3 py-1 rounded-full">
+                <span className="w-2 h-2 rounded-full bg-[#5379EE] animate-ping"></span>
+                <span className="font-mono-tech text-xs text-[#4338ca] font-bold">
                   Shield Active: {userProfile.activeAllergens.filter((a) => a.active).length} restrictions
                 </span>
               </div>
@@ -45,14 +58,14 @@ export const DashboardScreen: React.FC = () => {
           <div className="flex items-center gap-3 z-10">
             <button
               onClick={() => setActiveTab('allergen-radar')}
-              className="inline-flex items-center gap-1.5 bg-[#ecfccb] hover:bg-[#d9f99d] text-[#65a30d] px-4 py-2 rounded-full font-mono-tech text-xs font-bold transition-all"
+              className="inline-flex items-center gap-1.5 bg-[#eef2ff] hover:bg-[#e0e7ff] text-[#5379EE] px-4 py-2 rounded-full font-mono-tech text-xs font-bold transition-all border border-[#dbe4fe]"
             >
               <span className="material-symbols-outlined text-base">tune</span>
               <span>Edit Tiers</span>
             </button>
             <button
               onClick={() => setActiveTab('scanner')}
-              className="inline-flex items-center gap-1.5 bg-[#84cc16] hover:bg-[#65a30d] text-[#0f172a] hover:text-white px-5 py-2 rounded-full font-mono-tech text-xs font-bold transition-all shadow-sm active:scale-95"
+              className="inline-flex items-center gap-1.5 bg-[#5379EE] hover:bg-[#4368DD] text-white px-5 py-2 rounded-full font-mono-tech text-xs font-bold transition-all shadow-[0_4px_16px_rgba(83,121,238,0.35)] active:scale-95"
             >
               <span className="material-symbols-outlined text-base">qr_code_scanner</span>
               <span>Quick Scan</span>
@@ -63,7 +76,7 @@ export const DashboardScreen: React.FC = () => {
         {/* Stat Counters Bar */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-white p-5 rounded-2xl border border-slate-100 flex items-center gap-4 shadow-xs">
-            <div className="w-12 h-12 rounded-xl bg-[#ecfccb] flex items-center justify-center text-[#65a30d]">
+            <div className="w-12 h-12 rounded-xl bg-[#e0e7ff] flex items-center justify-center text-[#5379EE]">
               <span className="material-symbols-outlined text-2xl">barcode_scanner</span>
             </div>
             <div>
@@ -87,7 +100,7 @@ export const DashboardScreen: React.FC = () => {
           </div>
 
           <div className="bg-white p-5 rounded-2xl border border-slate-100 flex items-center gap-4 shadow-xs">
-            <div className="w-12 h-12 rounded-xl bg-[#f7fee7] flex items-center justify-center text-[#65a30d]">
+            <div className="w-12 h-12 rounded-xl bg-[#ecfdf5] flex items-center justify-center text-[#059669]">
               <span className="material-symbols-outlined text-2xl">verified</span>
             </div>
             <div>
@@ -111,49 +124,70 @@ export const DashboardScreen: React.FC = () => {
           </div>
         </div>
 
-        {/* Primary Action Hero Cards */}
+        {/* Figure 3: Hero Action Banner - "READY? SET, SCAN!" with periwinkle theme */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Card 1: Scanner Trigger Box */}
-          <div className="lg:col-span-6 bg-white rounded-3xl p-6 sm:p-7 border border-slate-100 flex flex-col justify-between shadow-xs">
-            <div className="flex items-start justify-between">
-              <div>
-                <span className="font-mono-tech text-[10px] text-[#65a30d] font-bold uppercase tracking-wider">
-                  Fast Detection
+          {/* Main Hero Card: READY? SET, SCAN! (mirroring Figure 3 left side) */}
+          <div className="lg:col-span-7 bg-gradient-to-br from-[#4F72EC] via-[#5379EE] to-[#6C90FA] rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden flex flex-col justify-between shadow-xl">
+            {/* Ambient watermarks & decorative elements from Figure 3 */}
+            <div className="absolute -right-12 -bottom-12 w-56 h-56 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
+            <div className="absolute top-6 right-6 w-16 h-16 rounded-full border border-white/20 pointer-events-none"></div>
+            <div className="absolute top-14 right-14 w-8 h-8 rounded-full border border-white/20 pointer-events-none"></div>
+
+            <div className="space-y-4 z-10">
+              <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm border border-white/30 px-3 py-1 rounded-full">
+                <span className="w-2 h-2 rounded-full bg-white animate-pulse"></span>
+                <span className="font-mono-tech text-[10px] text-white font-bold uppercase tracking-wider">
+                  IngreGuide Barcode Recognition System
                 </span>
-                <h2 className="text-lg font-bold text-[#0f172a]">Quick Barcode &amp; Label Scanner</h2>
-                <p className="text-xs text-[#64748b] mt-0.5">
-                  Scan packaged goods or upload high-res ingredient lists to verify purity instantly.
-                </p>
               </div>
-              <span className="w-10 h-10 rounded-full bg-[#ecfccb] flex items-center justify-center text-[#65a30d]">
-                <span className="material-symbols-outlined text-xl">camera_alt</span>
-              </span>
+
+              {/* Figure 3 Title: Vertical white accent bar + READY? SET, SCAN! */}
+              <div className="flex items-stretch gap-3.5">
+                <div className="w-1.5 bg-white rounded-full"></div>
+                <div>
+                  <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white uppercase leading-none">
+                    READY?<br />SET,<br />SCAN!
+                  </h2>
+                </div>
+              </div>
+
+              <p className="text-xs sm:text-sm text-white/90 max-w-md pt-1">
+                &quot;Read with Sight, Choose What's Right.&quot; Point your camera at any packaged food barcode or upload an image to decode ingredients instantly.
+              </p>
             </div>
 
-            <div
-              onClick={() => setActiveTab('scanner')}
-              className="my-5 p-6 rounded-2xl bg-[#f7fee7] border border-dashed border-[#84cc16] flex flex-col items-center justify-center text-center gap-2 cursor-pointer hover:bg-[#ecfccb]/60 transition-all group"
-            >
-              <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center text-[#65a30d] shadow-sm group-hover:scale-105 transition-transform">
-                <span className="material-symbols-outlined text-2xl">upload_file</span>
-              </div>
-              <div>
-                <p className="text-xs font-bold text-[#0f172a]">Drop nutrition panel or packaging image</p>
-                <p className="text-[11px] text-[#64748b]">Supports JPG, PNG, WEBP or Barcode scans</p>
+            {/* Figure 3 Reticle Box & "SCAN HERE!" Button */}
+            <div className="mt-6 pt-4 border-t border-white/20 z-10">
+              {/* Reticle Viewfinder Area */}
+              <div className="relative w-full py-4 px-6 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/30 flex items-center justify-between mb-4">
+                {/* 4 Corner Crosshairs */}
+                <div className="absolute top-2 left-2 w-3 h-3 border-t-2 border-l-2 border-white"></div>
+                <div className="absolute top-2 right-2 w-3 h-3 border-t-2 border-r-2 border-white"></div>
+                <div className="absolute bottom-2 left-2 w-3 h-3 border-b-2 border-l-2 border-white"></div>
+                <div className="absolute bottom-2 right-2 w-3 h-3 border-b-2 border-r-2 border-white"></div>
+
+                <div className="flex items-center gap-3">
+                  <span className="material-symbols-outlined text-white text-2xl">crop_free</span>
+                  <div className="text-xs text-white">
+                    <p className="font-bold">UPC / EAN Barcode Detector</p>
+                    <p className="text-white/80 text-[11px]">Ready for instant auto-focus</p>
+                  </div>
+                </div>
+
+                {/* Big Prominent "SCAN HERE!" Button from Figure 3 */}
+                <button
+                  onClick={() => setActiveTab('scanner')}
+                  className="px-6 py-3 bg-[#6B8FF8] hover:bg-white text-white hover:text-[#5379EE] font-black text-sm rounded-full transition-all border-2 border-white flex items-center gap-2 shadow-[0_4px_16px_rgba(0,0,0,0.15)] active:scale-95 cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-xl">qr_code_scanner</span>
+                  <span className="tracking-wide">SCAN HERE!</span>
+                </button>
               </div>
             </div>
-
-            <button
-              onClick={() => setActiveTab('scanner')}
-              className="w-full h-11 bg-[#84cc16] hover:bg-[#65a30d] text-[#0f172a] hover:text-white rounded-full font-mono-tech text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95"
-            >
-              <span className="material-symbols-outlined text-lg">view_in_ar</span>
-              <span>Open Scanner Viewfinder</span>
-            </button>
           </div>
 
-          {/* Card 2: Emergency Allergen Alert Summary */}
-          <div className="lg:col-span-6 bg-[#fff1f2] rounded-3xl p-6 sm:p-7 border border-[#ffdad6] flex flex-col justify-between shadow-xs">
+          {/* Card 2: High Alert Allergen Trigger Clash */}
+          <div className="lg:col-span-5 bg-[#fff1f2] rounded-3xl p-6 sm:p-7 border border-[#ffdad6] flex flex-col justify-between shadow-xs">
             <div className="flex items-start justify-between">
               <div>
                 <div className="inline-flex items-center gap-1.5 text-[#e11d48]">
@@ -189,10 +223,10 @@ export const DashboardScreen: React.FC = () => {
 
             <div className="flex items-center justify-between gap-3 flex-wrap pt-1">
               <div className="flex items-center gap-1 text-xs text-[#0f172a]">
-                <span className="material-symbols-outlined text-[#65a30d] text-base">lightbulb</span>
+                <span className="material-symbols-outlined text-[#5379EE] text-base">lightbulb</span>
                 <span className="text-[11px]">
                   Suggested Clean Alternative:{' '}
-                  <strong className="text-[#65a30d]">Nut-Free Pure Amaranth Bites</strong>
+                  <strong className="text-[#5379EE]">Nut-Free Pure Amaranth Bites</strong>
                 </span>
               </div>
               <button
@@ -207,6 +241,201 @@ export const DashboardScreen: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Figure 3: "Welcome Back, User!" Header with Blue Underline */}
+        <div className="pt-2">
+          <h1 className="text-2xl sm:text-3xl font-black text-[#5379EE] tracking-tight underline decoration-4 decoration-[#5379EE] underline-offset-8">
+            Welcome Back, {userProfile.displayName || 'User'}!
+          </h1>
+        </div>
+
+        {/* Figure 3: "— RECENT SCANS —" Carousel with Chevrons */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-black uppercase tracking-wider text-[#475569]">
+              — RECENT SCANS —
+            </h2>
+            <button
+              onClick={() => setActiveTab('scanner')}
+              className="text-xs font-mono-tech text-[#5379EE] hover:underline flex items-center gap-1 font-bold"
+            >
+              <span>Scan New Item</span>
+              <span className="material-symbols-outlined text-sm">arrow_forward</span>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Left Chevron from Figure 3 */}
+            <button
+              onClick={() => {
+                const el = document.getElementById('recent-scans-track');
+                if (el) el.scrollBy({ left: -260, behavior: 'smooth' });
+              }}
+              className="w-10 h-10 rounded-full bg-[#e0e7ff] hover:bg-[#5379EE] text-[#5379EE] hover:text-white flex items-center justify-center transition-colors shrink-0 shadow-xs cursor-pointer"
+              title="Previous recent scans"
+            >
+              <span className="material-symbols-outlined text-2xl">chevron_left</span>
+            </button>
+
+            {/* Horizontal scroll cards */}
+            <div id="recent-scans-track" className="flex-1 flex gap-4 overflow-x-auto pb-2 scrollbar-thin scroll-smooth">
+              {products.length === 0 ? (
+                <div className="py-8 text-center text-sm font-mono-tech text-[#94a3b8] w-full">
+                  NO RECENT SCANS YET...
+                </div>
+              ) : (
+                products.slice(0, 6).map((prod) => {
+                  const hasAllergens = prod.allergensDetected.length > 0;
+                  return (
+                    <div
+                      key={prod.id}
+                      onClick={() => {
+                        setSelectedProductId(prod.id);
+                        setActiveTab('product-analysis');
+                      }}
+                      className="w-64 shrink-0 bg-white rounded-2xl p-3.5 border border-slate-100 shadow-xs hover:shadow-md hover:border-[#5379EE]/50 transition-all cursor-pointer flex flex-col justify-between"
+                    >
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={prod.image}
+                          alt={prod.name}
+                          className="w-14 h-14 rounded-xl object-cover shrink-0 bg-slate-50"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <span className="text-[10px] font-mono-tech text-[#64748b] block uppercase truncate">
+                            {prod.brand}
+                          </span>
+                          <h4 className="text-xs font-bold text-[#0f172a] truncate">{prod.name}</h4>
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <span
+                              className={`px-1.5 py-0.5 rounded text-[10px] font-bold font-mono-tech ${
+                                prod.nutriScore === 'A'
+                                  ? 'bg-[#e0e7ff] text-[#4338ca]'
+                                  : prod.nutriScore === 'B'
+                                  ? 'bg-[#ecfdf5] text-[#059669]'
+                                  : 'bg-[#fef3c7] text-[#d97706]'
+                              }`}
+                            >
+                              Nutri-Score {prod.nutriScore}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 pt-2 border-t border-slate-50 flex items-center justify-between text-[11px]">
+                        <span
+                          className={`font-semibold ${
+                            hasAllergens ? 'text-[#e11d48]' : 'text-[#059669]'
+                          }`}
+                        >
+                          {hasAllergens ? `${prod.allergensDetected.length} Allergens` : 'Verified Safe'}
+                        </span>
+                        <span className="text-[#5379EE] font-mono-tech text-[10px]">Inspect &gt;</span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Right Chevron from Figure 3 */}
+            <button
+              onClick={() => {
+                const el = document.getElementById('recent-scans-track');
+                if (el) el.scrollBy({ left: 260, behavior: 'smooth' });
+              }}
+              className="w-10 h-10 rounded-full bg-[#e0e7ff] hover:bg-[#5379EE] text-[#5379EE] hover:text-white flex items-center justify-center transition-colors shrink-0 shadow-xs cursor-pointer"
+              title="Next recent scans"
+            >
+              <span className="material-symbols-outlined text-2xl">chevron_right</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Figure 3: "— PRODUCT CATEGORIES —" Carousel with Chevrons */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-black uppercase tracking-wider text-[#475569]">
+              — PRODUCT CATEGORIES —
+            </h2>
+            <span className="text-xs text-[#64748b]">Select to filter catalog</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Left Chevron */}
+            <button
+              onClick={() => {
+                const el = document.getElementById('categories-track');
+                if (el) el.scrollBy({ left: -220, behavior: 'smooth' });
+              }}
+              className="w-10 h-10 rounded-full bg-[#e0e7ff] hover:bg-[#5379EE] text-[#5379EE] hover:text-white flex items-center justify-center transition-colors shrink-0 shadow-xs cursor-pointer"
+              title="Previous categories"
+            >
+              <span className="material-symbols-outlined text-2xl">chevron_left</span>
+            </button>
+
+            {/* Category Cards matching Figure 3 */}
+            <div id="categories-track" className="flex-1 flex gap-3 overflow-x-auto pb-2 scrollbar-thin scroll-smooth">
+              {[
+                { id: 'all', label: 'ALL ITEMS', subLabel: 'Catalog', icon: 'apps', count: products.length },
+                { id: 'drinks', label: 'DRINKS', subLabel: 'Beverages', icon: 'local_cafe', count: 1 },
+                { id: 'dairy', label: 'DAIRY', subLabel: 'Milks & Cheeses', icon: 'egg_alt', count: 1, isHeroInMockup: true },
+                { id: 'cereal', label: 'CEREAL', subLabel: 'Grains & Oats', icon: 'grain', count: 2 },
+                { id: 'snacks', label: 'SNACKS', subLabel: 'Bars & Chips', icon: 'cookie', count: 2 },
+                { id: 'bakery', label: 'BAKERY', subLabel: 'Breads & Pastry', icon: 'bakery_dining', count: 1 },
+                { id: 'pantry', label: 'PANTRY', subLabel: 'Sauces & Spices', icon: 'kitchen', count: 1 },
+              ].map((cat) => {
+                const isSelected = selectedCategory === cat.id;
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => setSelectedCategory(cat.id)}
+                    className={`min-w-[150px] p-4 rounded-2xl border-2 transition-all text-center flex flex-col items-center justify-between cursor-pointer ${
+                      isSelected
+                        ? 'bg-[#5379EE] text-white border-[#5379EE] shadow-lg scale-105 z-10'
+                        : 'bg-white border-slate-200 text-[#0f172a] hover:border-[#5379EE]/50 hover:bg-[#f8fafc]'
+                    }`}
+                  >
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-2 bg-white/20">
+                      <span
+                        className={`material-symbols-outlined text-3xl ${
+                          isSelected ? 'text-white' : 'text-[#5379EE]'
+                        }`}
+                      >
+                        {cat.icon}
+                      </span>
+                    </div>
+                    <span className="text-xs font-black tracking-wide block uppercase">
+                      {cat.label}
+                    </span>
+                    <span
+                      className={`text-[10px] font-mono-tech mt-0.5 ${
+                        isSelected ? 'text-white/80' : 'text-[#64748b]'
+                      }`}
+                    >
+                      {cat.subLabel}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Right Chevron */}
+            <button
+              onClick={() => {
+                const el = document.getElementById('categories-track');
+                if (el) el.scrollBy({ left: 220, behavior: 'smooth' });
+              }}
+              className="w-10 h-10 rounded-full bg-[#e0e7ff] hover:bg-[#5379EE] text-[#5379EE] hover:text-white flex items-center justify-center transition-colors shrink-0 shadow-xs cursor-pointer"
+              title="Next categories"
+            >
+              <span className="material-symbols-outlined text-2xl">chevron_right</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Nutritional Intake History & 30-Day Trends (Recharts) */}
+        <NutritionHistoryChart />
 
         {/* Main Section: Recent Scans & Product Health Matrix */}
         <div className="space-y-4">
@@ -268,7 +497,7 @@ export const DashboardScreen: React.FC = () => {
                     setSelectedProductId(prod.id);
                     setActiveTab('product-analysis');
                   }}
-                  className="bg-white rounded-2xl p-4 border border-slate-100 shadow-xs flex flex-col justify-between hover:shadow-md hover:border-[#84cc16]/50 transition-all cursor-pointer group"
+                  className="bg-white rounded-2xl p-4 border border-slate-100 shadow-xs flex flex-col justify-between hover:shadow-md hover:border-[#5379EE]/50 transition-all cursor-pointer group"
                 >
                   <div className="space-y-3">
                     <div className="relative w-full h-40 rounded-xl overflow-hidden bg-slate-100">
@@ -282,9 +511,9 @@ export const DashboardScreen: React.FC = () => {
                         <span
                           className={`font-mono-tech text-xs font-extrabold ${
                             prod.nutriScore === 'A'
-                              ? 'text-[#65a30d]'
+                              ? 'text-[#4338ca]'
                               : prod.nutriScore === 'B'
-                              ? 'text-[#84cc16]'
+                              ? 'text-[#5379EE]'
                               : 'text-[#d97706]'
                           }`}
                         >
@@ -297,7 +526,7 @@ export const DashboardScreen: React.FC = () => {
                             ? 'bg-[#fff1f2] text-[#e11d48]'
                             : prod.allergensDetected.length > 0
                             ? 'bg-[#fffbeb] text-[#d97706]'
-                            : 'bg-[#ecfccb] text-[#65a30d]'
+                            : 'bg-[#e0e7ff] text-[#4338ca]'
                         }`}
                       >
                         <span className="material-symbols-outlined text-xs">
@@ -325,7 +554,7 @@ export const DashboardScreen: React.FC = () => {
                           ? 'text-[#e11d48]'
                           : prod.allergensDetected.length > 0
                           ? 'text-[#d97706]'
-                          : 'text-[#65a30d]'
+                          : 'text-[#5379EE]'
                       }`}
                     >
                       {isHazard ? 'Shield Flagged' : prod.allergensDetected.length > 0 ? 'Trace Caution' : 'Verified Safe'}
@@ -335,7 +564,7 @@ export const DashboardScreen: React.FC = () => {
                         e.stopPropagation();
                         triggerScanCheck(prod);
                       }}
-                      className="w-7 h-7 rounded-full bg-[#f1f5f9] hover:bg-[#84cc16] hover:text-[#0f172a] flex items-center justify-center text-[#64748b] transition-colors"
+                      className="w-7 h-7 rounded-full bg-[#f1f5f9] hover:bg-[#5379EE] hover:text-white flex items-center justify-center text-[#64748b] transition-colors"
                       title="Test Sensory Scan"
                     >
                       <span className="material-symbols-outlined text-base">radar</span>
@@ -347,16 +576,19 @@ export const DashboardScreen: React.FC = () => {
           </div>
         </div>
 
+        {/* Research Study Evaluation & Empirical Metrics (IngreGuide RS-IV Section C1 & C3) */}
+        <ResearchMetricsPanel />
+
         {/* Bottom Section: Split 2-Column */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left Column: Daily Nutrition Insight */}
           <div className="lg:col-span-7 bg-white rounded-3xl p-6 sm:p-7 border border-slate-100 shadow-xs flex flex-col justify-between">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 text-[#65a30d]">
+                <div className="flex items-center gap-1.5 text-[#5379EE]">
                   <span className="material-symbols-outlined text-base">science</span>
                   <span className="font-mono-tech text-[10px] font-bold uppercase tracking-wider">
-                    Botanical Lab Intelligence
+                    Scientific Intelligence
                   </span>
                 </div>
                 <span className="font-mono-tech text-[11px] text-[#64748b]">2 min read</span>
@@ -371,16 +603,16 @@ export const DashboardScreen: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-3 gap-2.5 pt-1">
-                <div className="p-3 rounded-xl bg-[#f7fee7] flex flex-col">
-                  <span className="font-mono-tech text-[11px] text-[#65a30d] font-bold">E412 (Guar Gum)</span>
+                <div className="p-3 rounded-xl bg-[#eef2ff] flex flex-col">
+                  <span className="font-mono-tech text-[11px] text-[#5379EE] font-bold">E412 (Guar Gum)</span>
                   <span className="text-xs text-[#0f172a] font-medium">Safe Botanical</span>
                 </div>
                 <div className="p-3 rounded-xl bg-[#fff1f2] flex flex-col">
                   <span className="font-mono-tech text-[11px] text-[#e11d48] font-bold">E407 (Carrageenan)</span>
                   <span className="text-xs text-[#0f172a] font-medium">Inflammation Risk</span>
                 </div>
-                <div className="p-3 rounded-xl bg-[#ecfccb] flex flex-col">
-                  <span className="font-mono-tech text-[11px] text-[#65a30d] font-bold">E322 (Lecithin)</span>
+                <div className="p-3 rounded-xl bg-[#e0e7ff] flex flex-col">
+                  <span className="font-mono-tech text-[11px] text-[#4338ca] font-bold">E322 (Lecithin)</span>
                   <span className="text-xs text-[#0f172a] font-medium">Sunflower Pure</span>
                 </div>
               </div>
@@ -389,7 +621,7 @@ export const DashboardScreen: React.FC = () => {
             <div className="mt-6 flex items-center justify-between pt-2 border-t border-slate-50">
               <button
                 onClick={() => setActiveTab('ingredient-clarity')}
-                className="inline-flex items-center gap-1 font-mono-tech text-xs font-bold text-[#65a30d] hover:text-[#0f172a] transition-colors"
+                className="inline-flex items-center gap-1 font-mono-tech text-xs font-bold text-[#5379EE] hover:text-[#0f172a] transition-colors"
               >
                 <span>Read full additive guide</span>
                 <span className="material-symbols-outlined text-sm">arrow_forward</span>
@@ -408,7 +640,7 @@ export const DashboardScreen: React.FC = () => {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-bold text-[#0f172a]">Actions &amp; Watchlists</h3>
-                <span className="w-8 h-8 rounded-full bg-[#ecfccb] flex items-center justify-center text-[#65a30d]">
+                <span className="w-8 h-8 rounded-full bg-[#e0e7ff] flex items-center justify-center text-[#5379EE]">
                   <span className="material-symbols-outlined text-base">bolt</span>
                 </span>
               </div>
@@ -416,20 +648,20 @@ export const DashboardScreen: React.FC = () => {
               <div className="flex flex-col gap-1.5">
                 <button
                   onClick={() => setActiveTab('allergen-radar')}
-                  className="p-3 rounded-2xl hover:bg-[#f7fee7] transition-colors flex items-center justify-between group text-left"
+                  className="p-3 rounded-2xl hover:bg-[#eef2ff] transition-colors flex items-center justify-between group text-left"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-[#ecfccb] flex items-center justify-center text-[#65a30d]">
+                    <div className="w-9 h-9 rounded-xl bg-[#e0e7ff] flex items-center justify-center text-[#5379EE]">
                       <span className="material-symbols-outlined text-lg">radar</span>
                     </div>
                     <div>
-                      <span className="text-xs font-bold text-[#0f172a] group-hover:text-[#65a30d] transition-colors block">
+                      <span className="text-xs font-bold text-[#0f172a] group-hover:text-[#5379EE] transition-colors block">
                         Edit Allergen Radar
                       </span>
                       <span className="text-[11px] text-[#64748b]">Fine-tune tolerance thresholds &amp; sensitivity</span>
                     </div>
                   </div>
-                  <span className="material-symbols-outlined text-slate-300 group-hover:text-[#65a30d] text-base transition-colors">
+                  <span className="material-symbols-outlined text-slate-300 group-hover:text-[#5379EE] text-base transition-colors">
                     chevron_right
                   </span>
                 </button>
@@ -439,40 +671,40 @@ export const DashboardScreen: React.FC = () => {
                     setSelectedProductId('prod-roasted-granola');
                     setActiveTab('product-analysis');
                   }}
-                  className="p-3 rounded-2xl hover:bg-[#f7fee7] transition-colors flex items-center justify-between group text-left"
+                  className="p-3 rounded-2xl hover:bg-[#eef2ff] transition-colors flex items-center justify-between group text-left"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-[#ecfccb] flex items-center justify-center text-[#65a30d]">
+                    <div className="w-9 h-9 rounded-xl bg-[#e0e7ff] flex items-center justify-center text-[#5379EE]">
                       <span className="material-symbols-outlined text-lg">swap_horiz</span>
                     </div>
                     <div>
-                      <span className="text-xs font-bold text-[#0f172a] group-hover:text-[#65a30d] transition-colors block">
+                      <span className="text-xs font-bold text-[#0f172a] group-hover:text-[#5379EE] transition-colors block">
                         Safe Swaps Directory
                       </span>
                       <span className="text-[11px] text-[#64748b]">Browse 4,500+ verified allergen-safe substitutes</span>
                     </div>
                   </div>
-                  <span className="material-symbols-outlined text-slate-300 group-hover:text-[#65a30d] text-base transition-colors">
+                  <span className="material-symbols-outlined text-slate-300 group-hover:text-[#5379EE] text-base transition-colors">
                     chevron_right
                   </span>
                 </button>
 
                 <button
                   onClick={() => setActiveTab('allergen-radar')}
-                  className="p-3 rounded-2xl hover:bg-[#f7fee7] transition-colors flex items-center justify-between group text-left"
+                  className="p-3 rounded-2xl hover:bg-[#eef2ff] transition-colors flex items-center justify-between group text-left"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-[#ecfccb] flex items-center justify-center text-[#65a30d]">
+                    <div className="w-9 h-9 rounded-xl bg-[#e0e7ff] flex items-center justify-center text-[#5379EE]">
                       <span className="material-symbols-outlined text-lg">add_circle</span>
                     </div>
                     <div>
-                      <span className="text-xs font-bold text-[#0f172a] group-hover:text-[#65a30d] transition-colors block">
+                      <span className="text-xs font-bold text-[#0f172a] group-hover:text-[#5379EE] transition-colors block">
                         Add Custom Additive Watch
                       </span>
                       <span className="text-[11px] text-[#64748b]">Track artificial sweeteners, dyes, or preservatives</span>
                     </div>
                   </div>
-                  <span className="material-symbols-outlined text-slate-300 group-hover:text-[#65a30d] text-base transition-colors">
+                  <span className="material-symbols-outlined text-slate-300 group-hover:text-[#5379EE] text-base transition-colors">
                     chevron_right
                   </span>
                 </button>
@@ -481,8 +713,8 @@ export const DashboardScreen: React.FC = () => {
 
             <div className="pt-4 flex items-center justify-between border-t border-slate-50 text-[11px] text-[#64748b]">
               <span>Database Synced: 2 min ago</span>
-              <span className="inline-flex items-center gap-1 font-mono-tech text-[#65a30d] font-bold">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#84cc16]"></span>
+              <span className="inline-flex items-center gap-1 font-mono-tech text-[#5379EE] font-bold">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#5379EE]"></span>
                 Cloud Sync Active
               </span>
             </div>

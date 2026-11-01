@@ -35,10 +35,10 @@ const MainContent: React.FC = () => {
       {/* Global Footer */}
       <footer className="w-full bg-[#f0f3ff] border-t border-[#dae2fd]/60 py-6 mb-16 lg:mb-0">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <span className="font-extrabold text-base text-[#65a30d]">NutriScan</span>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3">
+            <span className="font-extrabold text-base text-[#65a30d]">IngreGuide</span>
             <span className="text-xs text-[#64748b]">
-              • Modern Botanical Food Clarity &amp; Allergen Intelligence
+              • &quot;Read with Sight, Choose What's Right&quot; | Science Investigatory Project (2026–2027) • RA 10173 &amp; WCAG 2.2
             </span>
           </div>
 

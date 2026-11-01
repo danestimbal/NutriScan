@@ -91,7 +91,7 @@ export const AdminScreen: React.FC = () => {
       certifications: [
         {
           title: 'Admin Verified Batch',
-          details: 'Certified in NutriScan Catalog v2.4',
+          details: 'Certified in IngreGuide Catalog v2.4',
           verified: true,
           icon: 'verified_user',
         },
@@ -584,12 +584,12 @@ export const AdminScreen: React.FC = () => {
           <div className="bg-white max-w-lg w-full rounded-3xl shadow-2xl p-6 sm:p-8 flex flex-col gap-4 border border-slate-100">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-xl bg-[#ecfccb] text-[#65a30d] flex items-center justify-center">
+                <div className="w-10 h-10 rounded-xl bg-[#e0e7ff] text-[#5379EE] flex items-center justify-center">
                   <span className="material-symbols-outlined text-xl">add_shopping_cart</span>
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-[#0f172a]">New Product Entry</h3>
-                  <p className="text-xs text-[#64748b]">Add verified item to global NutriScan food catalog</p>
+                  <p className="text-xs text-[#64748b]">Add verified item to global IngreGuide food catalog</p>
                 </div>
               </div>
               <button

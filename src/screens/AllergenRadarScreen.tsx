@@ -410,26 +410,26 @@ export const AllergenRadarScreen: React.FC = () => {
             </section>
 
             {/* Regulatory Standards Compliance Badge */}
-            <section className="bg-gradient-to-br from-[#f7fee7] to-[#ecfccb] rounded-3xl p-6 border border-[#d9f99d] space-y-3 shadow-xs">
-              <div className="flex items-center gap-1.5 font-mono-tech text-xs text-[#65a30d] font-bold uppercase tracking-widest">
+            <section className="bg-gradient-to-br from-[#eef2ff] to-[#e0e7ff] rounded-3xl p-6 border border-[#c7d2fe] space-y-3 shadow-xs">
+              <div className="flex items-center gap-1.5 font-mono-tech text-xs text-[#5379EE] font-bold uppercase tracking-widest">
                 <span className="material-symbols-outlined text-base">verified</span>
-                <span>Clinical Data Integrity</span>
+                <span>Scientific Data Integrity</span>
               </div>
               <h3 className="text-sm font-bold text-[#0f172a]">Regulatory Standards Synchronized</h3>
               <p className="text-xs text-[#565e74] leading-relaxed">
-                NutriScan algorithms continuously ingest and validate against the <strong>FDA Food Allergen Labeling &amp; Consumer Protection Act (FALCPA)</strong> and <strong>EU Regulation 1169/2011 (FIC)</strong>, monitoring cross-contamination declarations and over 1,200 hidden nomenclature derivatives.
+                IngreGuide algorithms continuously ingest and validate against the <strong>FDA Food Allergen Labeling &amp; Consumer Protection Act (FALCPA)</strong> and <strong>EU Regulation 1169/2011 (FIC)</strong>, monitoring cross-contamination declarations and over 1,200 hidden nomenclature derivatives.
               </p>
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className="bg-white p-2.5 rounded-xl flex items-center gap-1.5 shadow-xs">
-                  <span className="material-symbols-outlined text-[#65a30d] text-base">check_circle</span>
+                  <span className="material-symbols-outlined text-[#5379EE] text-base">check_circle</span>
                   <span className="font-semibold text-[11px]">FDA 9 Allergens</span>
                 </div>
                 <div className="bg-white p-2.5 rounded-xl flex items-center gap-1.5 shadow-xs">
-                  <span className="material-symbols-outlined text-[#65a30d] text-base">check_circle</span>
+                  <span className="material-symbols-outlined text-[#5379EE] text-base">check_circle</span>
                   <span className="font-semibold text-[11px]">EU 14 Mandatory</span>
                 </div>
                 <div className="bg-white p-2.5 rounded-xl flex items-center gap-1.5 shadow-xs">
-                  <span className="material-symbols-outlined text-[#65a30d] text-base">check_circle</span>
+                  <span className="material-symbols-outlined text-[#5379EE] text-base">check_circle</span>
                   <span className="font-semibold text-[11px]">Advisory (PAL)</span>
                 </div>
                 <div className="bg-white p-2.5 rounded-xl flex items-center gap-1.5 shadow-xs">

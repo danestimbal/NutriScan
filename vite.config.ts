@@ -14,9 +14,9 @@ export default defineConfig(() => {
         includeAssets: ['icon.svg', 'apple-touch-icon.png'],
         manifest: {
           id: '/',
-          name: 'NutriScan - Food Transparency & Allergen Radar',
-          short_name: 'NutriScan',
-          description: 'Decode deceptive labels, spot hidden allergens instantly, and personalize dietary guardrails with medical-grade clarity.',
+          name: 'IngreGuide - Personalized Food Ingredient Information System',
+          short_name: 'IngreGuide',
+          description: 'Read with Sight, Choose What\'s Right - Personalized food ingredient information system using barcode scanning.',
           theme_color: '#84cc16',
           background_color: '#f9f9ff',
           display: 'standalone',
@@ -44,6 +44,7 @@ export default defineConfig(() => {
           ],
         },
         workbox: {
+          maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
           runtimeCaching: [
             {

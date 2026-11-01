@@ -98,18 +98,18 @@ export const ScannerScreen: React.FC = () => {
               <span>Dashboard</span>
             </button>
             <span>/</span>
-            <span className="text-[#65a30d] font-bold flex items-center gap-1">
+            <span className="text-[#5379EE] font-bold flex items-center gap-1">
               <span className="material-symbols-outlined text-sm">barcode_scanner</span>
               <span>Scanner</span>
             </span>
           </div>
 
-          <div className="flex items-center gap-2 bg-[#ecfccb] px-3.5 py-1.5 rounded-full shadow-xs">
+          <div className="flex items-center gap-2 bg-[#e0e7ff] px-3.5 py-1.5 rounded-full shadow-xs">
             <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#84cc16] opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#65a30d]"></span>
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#5379EE] opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#4338ca]"></span>
             </span>
-            <span className="font-mono-tech text-[10px] sm:text-xs text-[#65a30d] font-bold uppercase tracking-wider">
+            <span className="font-mono-tech text-[10px] sm:text-xs text-[#4338ca] font-bold uppercase tracking-wider">
               Live Engine: EAN-13 / UPC-A / OCR v4.2 Ready
             </span>
           </div>
@@ -119,8 +119,8 @@ export const ScannerScreen: React.FC = () => {
         <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-100 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="max-w-2xl">
             <div className="flex items-center gap-2 mb-1">
-              <span className="font-mono-tech text-[10px] uppercase tracking-widest text-[#65a30d] font-bold">
-                Botanical Optical Engine
+              <span className="font-mono-tech text-[10px] uppercase tracking-widest text-[#5379EE] font-bold">
+                IngreGuide Optical Engine
               </span>
               <span className="text-slate-300">•</span>
               <span className="font-mono-tech text-[10px] text-[#64748b]">Zero-Latency Vision</span>
@@ -144,7 +144,7 @@ export const ScannerScreen: React.FC = () => {
                   : 'text-[#64748b] hover:text-[#0f172a]'
               }`}
             >
-              <span className="material-symbols-outlined text-base text-[#65a30d]">barcode_reader</span>
+              <span className="material-symbols-outlined text-base text-[#5379EE]">barcode_reader</span>
               <span>UPC / EAN Lens</span>
             </button>
             <button
@@ -155,7 +155,7 @@ export const ScannerScreen: React.FC = () => {
                   : 'text-[#64748b] hover:text-[#0f172a]'
               }`}
             >
-              <span className="material-symbols-outlined text-base">document_scanner</span>
+              <span className="material-symbols-outlined text-base text-[#5379EE]">document_scanner</span>
               <span>Label OCR Reader</span>
             </button>
           </div>
@@ -170,12 +170,12 @@ export const ScannerScreen: React.FC = () => {
               {/* Top Bar Overlay */}
               <div className="bg-[#0f172a]/85 backdrop-blur-md px-4 py-2.5 flex items-center justify-between z-20 border-b border-white/5">
                 <div className="flex items-center gap-2 text-[#f7fee7] font-mono-tech text-xs">
-                  <span className="material-symbols-outlined text-[#a3e635] text-sm animate-pulse">videocam</span>
+                  <span className="material-symbols-outlined text-[#38bdf8] text-sm animate-pulse">videocam</span>
                   <span>Sensor Lens (1080p, 60fps)</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="px-2 py-0.5 rounded-full bg-white/10 text-white font-mono-tech text-[10px]">ISO AUTO</span>
-                  <span className="px-2 py-0.5 rounded-full bg-[#84cc16]/20 text-[#a3e635] font-mono-tech text-[10px]">
+                  <span className="px-2 py-0.5 rounded-full bg-[#5379EE]/30 text-[#93c5fd] font-mono-tech text-[10px]">
                     AI ALIGNED
                   </span>
                 </div>
@@ -205,14 +205,14 @@ export const ScannerScreen: React.FC = () => {
 
                 {/* Targeting Box / Reticles */}
                 <div className="relative w-64 sm:w-72 h-40 sm:h-44 z-10 flex items-center justify-center pointer-events-none">
-                  {/* 4 Corner Reticles */}
-                  <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-[#84cc16] rounded-tl-lg shadow-[0_0_12px_#84cc16]"></div>
-                  <div className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-[#84cc16] rounded-tr-lg shadow-[0_0_12px_#84cc16]"></div>
-                  <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-[#84cc16] rounded-bl-lg shadow-[0_0_12px_#84cc16]"></div>
-                  <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-[#84cc16] rounded-br-lg shadow-[0_0_12px_#84cc16]"></div>
+                  {/* 4 Corner Reticles with vibrant IngreGuide blue / cyan */}
+                  <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-[#38bdf8] rounded-tl-lg shadow-[0_0_12px_#38bdf8]"></div>
+                  <div className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-[#38bdf8] rounded-tr-lg shadow-[0_0_12px_#38bdf8]"></div>
+                  <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-[#38bdf8] rounded-bl-lg shadow-[0_0_12px_#38bdf8]"></div>
+                  <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-[#38bdf8] rounded-br-lg shadow-[0_0_12px_#38bdf8]"></div>
 
                   {/* Animated Laser Scan Line */}
-                  <div className="absolute inset-x-2 h-0.5 bg-gradient-to-r from-transparent via-[#a3e635] to-transparent shadow-[0_0_14px_4px_#84cc16] animate-laser"></div>
+                  <div className="absolute inset-x-2 h-0.5 bg-gradient-to-r from-transparent via-[#38bdf8] to-transparent shadow-[0_0_14px_4px_#38bdf8] animate-laser"></div>
 
                   {/* Center Crosshair */}
                   <div className="opacity-40 flex flex-col items-center justify-center">

@@ -37,30 +37,43 @@ export const Header: React.FC = () => {
   ];
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-40 bg-[#f9f9ff]/90 backdrop-blur-xl border-b border-[#e7eff8] shadow-[0_1px_8px_rgba(0,0,0,0.03)]">
+    <header className="fixed top-0 left-0 right-0 z-40 bg-[#5379EE] text-white shadow-[0_2px_12px_rgba(83,121,238,0.25)] border-b border-[#4367db]">
       <div className="h-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
-        {/* Brand / Logo */}
+        {/* Brand / Logo (matching Figure 2 & Figure 3) */}
         <div
           onClick={() => setActiveTab('dashboard')}
-          className="flex items-center gap-2.5 cursor-pointer select-none shrink-0"
+          className="flex items-center gap-3 cursor-pointer select-none shrink-0"
         >
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#84cc16] to-[#0d7a5f] p-0.5 shadow-sm flex items-center justify-center">
-            <span className="material-symbols-outlined text-white text-xl">spa</span>
+          {/* Framed Scanner Logo Emblem with Leaf & Barcode */}
+          <div className="relative w-10 h-10 rounded-xl bg-white/15 border-2 border-white/60 p-1 flex items-center justify-center shadow-xs">
+            {/* Reticle corner notches */}
+            <div className="absolute top-0.5 left-0.5 w-1.5 h-1.5 border-t-2 border-l-2 border-white"></div>
+            <div className="absolute top-0.5 right-0.5 w-1.5 h-1.5 border-t-2 border-r-2 border-white"></div>
+            <div className="absolute bottom-0.5 left-0.5 w-1.5 h-1.5 border-b-2 border-l-2 border-white"></div>
+            <div className="absolute bottom-0.5 right-0.5 w-1.5 h-1.5 border-b-2 border-r-2 border-white"></div>
+            <div className="flex items-center justify-center text-white">
+              <span className="material-symbols-outlined text-[24px]">qr_code_scanner</span>
+            </div>
           </div>
           <div className="flex flex-col">
-            <div className="flex items-center gap-1.5">
-              <span className="font-sans text-xl font-bold tracking-tight text-[#0f172a]">NutriScan</span>
-              <span className="hidden sm:inline-block px-1.5 py-0.5 rounded-full bg-[#ecfccb] text-[#65a30d] font-mono-tech text-[10px] font-bold">
-                v2.4 LIVE
+            <div className="flex items-center gap-2">
+              <span className="font-sans text-xl font-black tracking-tight text-white uppercase drop-shadow-xs">
+                INGREGUIDE
+              </span>
+              <span className="hidden sm:inline-block px-1.5 py-0.5 rounded-full bg-white/20 text-white font-mono-tech text-[10px] font-bold border border-white/30">
+                RS-IV
               </span>
             </div>
+            <span className="text-[10px] font-medium text-white/90 hidden md:inline leading-none tracking-wide">
+              Read with Sight, Choose What's Right.
+            </span>
           </div>
         </div>
 
-        {/* Global Live Search Bar */}
+        {/* Global Live Search Bar (matching Figure 3 "Search For...") */}
         <div className="flex-1 max-w-md hidden md:block relative">
           <div className="relative flex items-center w-full">
-            <span className="material-symbols-outlined absolute left-3.5 text-[#64748b] pointer-events-none text-lg">
+            <span className="material-symbols-outlined absolute left-3.5 text-[#5379EE] pointer-events-none text-lg">
               search
             </span>
             <input
@@ -68,8 +81,8 @@ export const Header: React.FC = () => {
               value={searchQuery}
               onChange={(e) => handleSearch(e.target.value)}
               onFocus={() => searchQuery.trim() && setShowSearchResults(true)}
-              placeholder="Scan UPC, E-numbers (e.g. E621), additives..."
-              className="w-full h-10 pl-10 pr-4 rounded-full bg-white text-[#0f172a] placeholder:text-[#94a3b8] text-sm border border-[#e2e8f0] outline-none transition-all shadow-[0_1px_6px_rgba(132,204,22,0.06)] focus:border-[#84cc16] focus:ring-2 focus:ring-[#84cc16]/20"
+              placeholder="Search For... (e.g. Cereals, 016000275270, E-numbers)"
+              className="w-full h-10 pl-10 pr-4 rounded-full bg-white text-[#0f172a] placeholder:text-[#94a3b8] text-sm border-0 outline-none transition-all shadow-[0_2px_8px_rgba(0,0,0,0.08)] focus:ring-2 focus:ring-white/80"
             />
             {searchQuery && (
               <button
@@ -86,7 +99,7 @@ export const Header: React.FC = () => {
 
           {/* Quick Search Popover Results */}
           {showSearchResults && (
-            <div className="absolute top-12 left-0 right-0 bg-white rounded-2xl shadow-xl border border-[#e2e8f0] p-2 max-h-80 overflow-y-auto z-50">
+            <div className="absolute top-12 left-0 right-0 bg-white rounded-2xl shadow-2xl border border-slate-100 p-2 max-h-80 overflow-y-auto z-50 text-[#0f172a]">
               {searchResults.length === 0 ? (
                 <div className="p-4 text-center text-xs text-[#64748b]">
                   No matching foods or E-codes found. Try UPC: 016000275270
@@ -101,7 +114,7 @@ export const Header: React.FC = () => {
                       setShowSearchResults(false);
                       setSearchQuery('');
                     }}
-                    className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-[#f7fee7] cursor-pointer transition-colors"
+                    className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-[#eef2ff] cursor-pointer transition-colors"
                   >
                     <img src={prod.image} alt={prod.name} className="w-10 h-10 rounded-lg object-cover bg-slate-100" />
                     <div className="flex-1 min-w-0">
@@ -110,9 +123,9 @@ export const Header: React.FC = () => {
                         <span
                           className={`font-mono-tech text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
                             prod.nutriScore === 'A'
-                              ? 'bg-[#ecfccb] text-[#65a30d]'
+                              ? 'bg-[#e0e7ff] text-[#4338ca]'
                               : prod.nutriScore === 'B'
-                              ? 'bg-[#f7fee7] text-[#84cc16]'
+                              ? 'bg-[#ecfdf5] text-[#059669]'
                               : 'bg-[#fffbeb] text-[#d97706]'
                           }`}
                         >
@@ -130,7 +143,7 @@ export const Header: React.FC = () => {
           )}
         </div>
 
-        {/* Navigation Tabs (Desktop) */}
+        {/* Navigation Tabs (Desktop matching Figure 3 Icons + Labels) */}
         <nav className="hidden lg:flex items-center gap-1">
           {navItems.map((item) => {
             const isActive = activeTab === item.tab;
@@ -138,13 +151,18 @@ export const Header: React.FC = () => {
               <button
                 key={item.tab}
                 onClick={() => setActiveTab(item.tab)}
-                className={`font-sans text-xs font-semibold px-3 py-1.5 rounded-full transition-all ${
+                className={`font-sans text-xs px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5 ${
                   isActive
-                    ? 'bg-[#ecfccb] text-[#65a30d] font-bold shadow-xs'
-                    : 'text-[#64748b] hover:text-[#0f172a] hover:bg-[#f1f5f9]'
+                    ? 'bg-white text-[#4368dd] font-bold shadow-xs'
+                    : 'text-white/85 hover:text-white hover:bg-white/10 font-semibold'
                 }`}
               >
-                {item.label}
+                {item.tab === 'dashboard' && <span className="material-symbols-outlined text-base">home</span>}
+                {item.tab === 'allergen-radar' && <span className="material-symbols-outlined text-base">eco</span>}
+                {item.tab === 'scanner' && <span className="material-symbols-outlined text-base">qr_code_scanner</span>}
+                {item.tab === 'product-analysis' && <span className="material-symbols-outlined text-base">inventory_2</span>}
+                {item.tab === 'ingredient-clarity' && <span className="material-symbols-outlined text-base">visibility</span>}
+                <span>{item.label}</span>
               </button>
             );
           })}
@@ -160,8 +178,8 @@ export const Header: React.FC = () => {
             onClick={() => setActiveTab('admin')}
             className={`hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-mono-tech text-[11px] font-bold transition-colors ${
               activeTab === 'admin'
-                ? 'bg-[#0f172a] text-[#84cc16]'
-                : 'bg-[#f1f5f9] text-[#64748b] hover:text-[#0f172a]'
+                ? 'bg-white text-[#4368dd]'
+                : 'bg-white/15 text-white hover:bg-white/25 border border-white/20'
             }`}
           >
             <span className="material-symbols-outlined text-sm">shield_person</span>
@@ -172,17 +190,17 @@ export const Header: React.FC = () => {
           <div className="relative">
             <button
               onClick={() => setShowUserMenu(!showUserMenu)}
-              className="flex items-center gap-1.5 p-1 rounded-full hover:bg-slate-100 transition-colors"
+              className="flex items-center gap-1.5 p-1 rounded-full hover:bg-white/15 transition-colors border border-white/30"
             >
               <img
                 src={
                   userProfile.photoURL ||
                   'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80'
                 }
-                alt="Sarah Chen Profile"
-                className="w-8 h-8 rounded-full object-cover ring-2 ring-[#84cc16]/30"
+                alt="Profile"
+                className="w-8 h-8 rounded-full object-cover ring-2 ring-white/60"
               />
-              <span className="material-symbols-outlined text-[#64748b] text-base hidden sm:inline">
+              <span className="material-symbols-outlined text-white text-base hidden sm:inline">
                 expand_more
               </span>
             </button>
@@ -193,8 +211,8 @@ export const Header: React.FC = () => {
                 <div className="px-3 py-2 border-b border-slate-100">
                   <p className="text-xs font-bold text-[#0f172a]">{userProfile.displayName}</p>
                   <p className="text-[11px] text-[#64748b] truncate">{userProfile.email}</p>
-                  <span className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#ecfccb] text-[#65a30d] text-[10px] font-bold">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#84cc16]"></span>
+                  <span className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#e0e7ff] text-[#4338ca] text-[10px] font-bold">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#5379EE]"></span>
                     Bio-Shield Active
                   </span>
                 </div>
@@ -204,9 +222,9 @@ export const Header: React.FC = () => {
                       setActiveTab('allergen-radar');
                       setShowUserMenu(false);
                     }}
-                    className="w-full text-left px-3 py-2 text-xs font-medium text-[#1e293b] hover:bg-[#f7fee7] rounded-xl flex items-center gap-2"
+                    className="w-full text-left px-3 py-2 text-xs font-medium text-[#1e293b] hover:bg-[#eef2ff] rounded-xl flex items-center gap-2"
                   >
-                    <span className="material-symbols-outlined text-sm text-[#84cc16]">radar</span>
+                    <span className="material-symbols-outlined text-sm text-[#5379EE]">radar</span>
                     Edit Allergen Radar
                   </button>
                   <button
@@ -214,7 +232,7 @@ export const Header: React.FC = () => {
                       setActiveTab('admin');
                       setShowUserMenu(false);
                     }}
-                    className="w-full text-left px-3 py-2 text-xs font-medium text-[#1e293b] hover:bg-[#f7fee7] rounded-xl flex items-center gap-2"
+                    className="w-full text-left px-3 py-2 text-xs font-medium text-[#1e293b] hover:bg-[#eef2ff] rounded-xl flex items-center gap-2"
                   >
                     <span className="material-symbols-outlined text-sm text-[#0f172a]">admin_panel_settings</span>
                     Operations Console
@@ -224,7 +242,7 @@ export const Header: React.FC = () => {
                       setActiveTab('auth');
                       setShowUserMenu(false);
                     }}
-                    className="w-full text-left px-3 py-2 text-xs font-medium text-[#1e293b] hover:bg-[#f7fee7] rounded-xl flex items-center gap-2"
+                    className="w-full text-left px-3 py-2 text-xs font-medium text-[#1e293b] hover:bg-[#eef2ff] rounded-xl flex items-center gap-2"
                   >
                     <span className="material-symbols-outlined text-sm text-[#64748b]">switch_account</span>
                     Switch Account / Portal

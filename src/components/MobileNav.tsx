@@ -11,10 +11,10 @@ export const MobileNav: React.FC = () => {
         <button
           onClick={() => setActiveTab('dashboard')}
           className={`flex flex-col items-center justify-center gap-0.5 flex-1 transition-all ${
-            activeTab === 'dashboard' ? 'text-[#65a30d]' : 'text-[#64748b] hover:text-[#0f172a]'
+            activeTab === 'dashboard' ? 'text-[#5379EE]' : 'text-[#64748b] hover:text-[#0f172a]'
           }`}
         >
-          <span className="material-symbols-outlined text-[22px]">grid_view</span>
+          <span className="material-symbols-outlined text-[22px]">home</span>
           <span className="font-sans text-[11px] font-semibold tracking-tight">Home</span>
         </button>
 
@@ -22,24 +22,24 @@ export const MobileNav: React.FC = () => {
         <button
           onClick={() => setActiveTab('allergen-radar')}
           className={`flex flex-col items-center justify-center gap-0.5 flex-1 transition-all ${
-            activeTab === 'allergen-radar' ? 'text-[#65a30d]' : 'text-[#64748b] hover:text-[#0f172a]'
+            activeTab === 'allergen-radar' ? 'text-[#5379EE]' : 'text-[#64748b] hover:text-[#0f172a]'
           }`}
         >
-          <span className="material-symbols-outlined text-[22px]">shield_with_heart</span>
+          <span className="material-symbols-outlined text-[22px]">eco</span>
           <span className="font-sans text-[11px] font-semibold tracking-tight">Allergens</span>
         </button>
 
-        {/* Item 3: Center Floating Scanner Button */}
+        {/* Item 3: Center Floating Scanner Button (Figure 3: SCAN HERE) */}
         <div className="relative -top-5 flex flex-col items-center justify-center mx-2">
           <button
             onClick={() => setActiveTab('scanner')}
             className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-transform active:scale-95 border-4 border-white ${
               activeTab === 'scanner'
-                ? 'bg-[#0f172a] text-[#84cc16] shadow-[#84cc16]/40'
-                : 'bg-gradient-to-tr from-[#0d7a5f] to-[#84cc16] text-white shadow-[#0d7a5f]/40'
+                ? 'bg-[#0f172a] text-[#5379EE] shadow-[#5379EE]/40'
+                : 'bg-gradient-to-tr from-[#4368DD] to-[#5D82F5] text-white shadow-[#5379EE]/40'
             }`}
           >
-            <span className="material-symbols-outlined text-[28px]">barcode_scanner</span>
+            <span className="material-symbols-outlined text-[28px]">qr_code_scanner</span>
           </button>
           <span className="font-mono-tech text-[10px] font-bold text-[#0f172a] mt-0.5">Scan</span>
         </div>
@@ -49,11 +49,11 @@ export const MobileNav: React.FC = () => {
           onClick={() => setActiveTab('product-analysis')}
           className={`flex flex-col items-center justify-center gap-0.5 flex-1 transition-all ${
             activeTab === 'product-analysis' || activeTab === 'ingredient-clarity'
-              ? 'text-[#65a30d]'
+              ? 'text-[#5379EE]'
               : 'text-[#64748b] hover:text-[#0f172a]'
           }`}
         >
-          <span className="material-symbols-outlined text-[22px]">history</span>
+          <span className="material-symbols-outlined text-[22px]">inventory_2</span>
           <span className="font-sans text-[11px] font-semibold tracking-tight">Products</span>
         </button>
 
@@ -61,7 +61,7 @@ export const MobileNav: React.FC = () => {
         <button
           onClick={() => setActiveTab('admin')}
           className={`flex flex-col items-center justify-center gap-0.5 flex-1 transition-all ${
-            activeTab === 'admin' ? 'text-[#65a30d]' : 'text-[#64748b] hover:text-[#0f172a]'
+            activeTab === 'admin' ? 'text-[#5379EE]' : 'text-[#64748b] hover:text-[#0f172a]'
           }`}
         >
           <span className="material-symbols-outlined text-[22px]">tune</span>

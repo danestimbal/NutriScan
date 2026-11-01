@@ -190,9 +190,9 @@ export const ProductAnalysisScreen: React.FC = () => {
 
             {/* Right: Transparency Score & Nutri-Score */}
             <div className="lg:col-span-3 flex flex-col gap-3">
-              <div className="bg-[#f7fee7] rounded-2xl p-4 border border-[#d9f99d] space-y-2">
+              <div className="bg-[#eef2ff] rounded-2xl p-4 border border-[#c7d2fe] space-y-2">
                 <span className="font-mono-tech text-[10px] uppercase text-[#64748b] tracking-wider font-bold">
-                  NutriScan Transparency Score
+                  IngreGuide Transparency Score
                 </span>
                 <div className="flex items-baseline justify-between">
                   <div className="flex items-baseline gap-1">
@@ -202,7 +202,7 @@ export const ProductAnalysisScreen: React.FC = () => {
                   <span
                     className={`font-mono-tech text-[10px] px-2 py-0.5 rounded-full font-bold ${
                       prod.transparencyScore >= 80
-                        ? 'bg-[#ecfccb] text-[#65a30d]'
+                        ? 'bg-[#e0e7ff] text-[#4338ca]'
                         : 'bg-[#fffbeb] text-[#d97706]'
                     }`}
                   >
@@ -212,7 +212,7 @@ export const ProductAnalysisScreen: React.FC = () => {
                 {/* Score bar */}
                 <div className="w-full bg-slate-200/80 h-2 rounded-full overflow-hidden">
                   <div
-                    className="bg-[#84cc16] h-full rounded-full transition-all duration-700"
+                    className="bg-[#5379EE] h-full rounded-full transition-all duration-700"
                     style={{ width: `${prod.transparencyScore}%` }}
                   ></div>
                 </div>

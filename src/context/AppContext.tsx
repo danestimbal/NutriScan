@@ -48,17 +48,17 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [activeTab, setActiveTab] = useState<NavigationTab>('dashboard');
   const [userProfile, setUserProfile] = useState<UserAllergenProfile>(() => {
-    const saved = localStorage.getItem('nutriscan_profile');
+    const saved = localStorage.getItem('ingreguide_profile') || localStorage.getItem('nutriscan_profile');
     return saved ? JSON.parse(saved) : initialUserProfile;
   });
   const [products, setProducts] = useState<FoodProduct[]>(seedProducts);
   const [selectedProductId, setSelectedProductIdState] = useState<string>('prod-roasted-granola');
   const [scanLogs, setScanLogs] = useState<ScanLog[]>(() => {
-    const saved = localStorage.getItem('nutriscan_scanlogs');
+    const saved = localStorage.getItem('ingreguide_scanlogs') || localStorage.getItem('nutriscan_scanlogs');
     return saved ? JSON.parse(saved) : initialScanLogs;
   });
   const [additivePolicies, setAdditivePolicies] = useState<AdditivePolicy[]>(() => {
-    const saved = localStorage.getItem('nutriscan_policies');
+    const saved = localStorage.getItem('ingreguide_policies') || localStorage.getItem('nutriscan_policies');
     return saved ? JSON.parse(saved) : initialAdditivePolicies;
   });
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(true);
@@ -87,7 +87,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const updateUserProfile = async (partial: Partial<UserAllergenProfile>) => {
     const updated = { ...userProfile, ...partial, lastSynced: 'Just now' };
     setUserProfile(updated);
-    localStorage.setItem('nutriscan_profile', JSON.stringify(updated));
+    localStorage.setItem('ingreguide_profile', JSON.stringify(updated));
 
     if (auth.currentUser) {
       try {
@@ -141,11 +141,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
     const updated = [newLog, ...scanLogs];
     setScanLogs(updated);
-    localStorage.setItem('nutriscan_scanlogs', JSON.stringify(updated));
+    localStorage.setItem('ingreguide_scanlogs', JSON.stringify(updated));
   };
 
   const clearScanLogs = () => {
     setScanLogs([]);
+    localStorage.removeItem('ingreguide_scanlogs');
     localStorage.removeItem('nutriscan_scanlogs');
   };
 
@@ -154,7 +155,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       p.eCode === eCode ? { ...p, isEnforced: !p.isEnforced } : p
     );
     setAdditivePolicies(updated);
-    localStorage.setItem('nutriscan_policies', JSON.stringify(updated));
+    localStorage.setItem('ingreguide_policies', JSON.stringify(updated));
   };
 
   const addNewProduct = (product: FoodProduct) => {
@@ -195,7 +196,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const enterGuestMode = () => {
     setIsLoggedIn(true);
-    setCurrentUserEmail('guest@nutriscan.app');
+    setCurrentUserEmail('guest@ingreguide.ph');
     setActiveTab('dashboard');
   };
 

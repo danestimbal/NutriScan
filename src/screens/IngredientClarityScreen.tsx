@@ -377,18 +377,18 @@ export const IngredientClarityScreen: React.FC = () => {
               </div>
             </div>
 
-            {/* The NutriScan Verdict */}
-            <div className="bg-[#f7fee7] rounded-3xl p-6 border border-[#d9f99d] shadow-xs space-y-3 relative overflow-hidden">
+            {/* The IngreGuide Verdict */}
+            <div className="bg-[#eef2ff] rounded-3xl p-6 border border-[#c7d2fe] shadow-xs space-y-3 relative overflow-hidden">
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[#65a30d] text-2xl">workspace_premium</span>
-                <h3 className="text-base font-bold text-[#0f172a]">The NutriScan Verdict</h3>
+                <span className="material-symbols-outlined text-[#5379EE] text-2xl">workspace_premium</span>
+                <h3 className="text-base font-bold text-[#0f172a]">The IngreGuide Verdict</h3>
               </div>
               <p className="text-xs text-[#1e293b] leading-relaxed">{prod.verdictSummary}</p>
-              <div className="bg-white/80 backdrop-blur-xs rounded-xl p-3 flex items-center justify-between border border-[#d9f99d]">
+              <div className="bg-white/80 backdrop-blur-xs rounded-xl p-3 flex items-center justify-between border border-[#c7d2fe]">
                 <span className="font-mono-tech text-[10px] text-[#64748b] uppercase font-bold">
                   Dietary Recommendation
                 </span>
-                <span className="font-mono-tech text-xs font-bold text-[#65a30d]">{prod.dietaryRecommendation}</span>
+                <span className="font-mono-tech text-xs font-bold text-[#5379EE]">{prod.dietaryRecommendation}</span>
               </div>
             </div>
 

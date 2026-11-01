@@ -141,3 +141,34 @@ export interface AdditivePolicy {
   badge: string;
   statusText: string;
 }
+
+export interface IntakeLogItem {
+  id: string;
+  name: string;
+  sugar: number; // grams
+  sodium: number; // mg
+  protein: number; // grams
+  calories?: number;
+  time?: string;
+}
+
+export interface DailyNutritionalIntake {
+  date: string; // formatted 'MMM dd' or 'YYYY-MM-DD'
+  displayDate: string; // e.g. "Sep 14"
+  dayIndex: number;
+  sugar: number; // grams
+  sodium: number; // mg
+  protein: number; // grams
+  calories: number;
+  items: IntakeLogItem[];
+}
+
+export interface NutritionSummaryStats {
+  avgSugar: number;
+  avgSodium: number;
+  avgProtein: number;
+  totalDays: number;
+  sugarThresholdPct: number;
+  sodiumThresholdPct: number;
+  proteinGoalPct: number;
+}
