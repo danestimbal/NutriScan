@@ -49,12 +49,12 @@ export const AllergenRadarScreen: React.FC = () => {
             <span>&gt;</span>
             <span className="hover:text-[#0f172a]">Safety Profiles</span>
             <span>&gt;</span>
-            <span className="text-[#65a30d] font-bold">Allergen Radar &amp; Safety Sentry</span>
+            <span className="text-[#5379EE] font-bold">Allergen Radar &amp; Safety Sentry</span>
           </div>
 
           <div className="flex items-center gap-3">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#ecfccb] text-[#65a30d] font-mono-tech text-xs uppercase font-bold tracking-wider shadow-xs">
-              <span className="w-2 h-2 rounded-full bg-[#84cc16] animate-pulse"></span>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EEF2FF] text-[#2563EB] font-mono-tech text-xs uppercase font-bold tracking-wider shadow-xs">
+              <span className="w-2 h-2 rounded-full bg-[#5379EE] animate-pulse"></span>
               Live Engine v4.2 • Active Sentry
             </span>
             <span className="text-xs text-[#64748b] hidden sm:inline">
@@ -66,7 +66,7 @@ export const AllergenRadarScreen: React.FC = () => {
         {/* Header Block */}
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
           <div className="max-w-3xl space-y-1">
-            <div className="inline-flex items-center gap-1.5 font-mono-tech text-xs text-[#65a30d] uppercase font-bold tracking-widest">
+            <div className="inline-flex items-center gap-1.5 font-mono-tech text-xs text-[#5379EE] uppercase font-bold tracking-widest">
               <span className="material-symbols-outlined text-base">radar</span>
               <span>Bespoke Bio-Sensory Shield</span>
             </div>
@@ -81,7 +81,7 @@ export const AllergenRadarScreen: React.FC = () => {
 
           {/* Quick Summary Stats Card */}
           <div className="flex items-center gap-4 bg-white p-4 rounded-2xl border border-slate-100 shadow-xs shrink-0">
-            <div className="w-12 h-12 rounded-xl bg-[#f7fee7] flex items-center justify-center text-[#65a30d]">
+            <div className="w-12 h-12 rounded-xl bg-[#EEF2FF] flex items-center justify-center text-[#5379EE]">
               <span className="material-symbols-outlined text-2xl">verified_user</span>
             </div>
             <div>
@@ -100,7 +100,7 @@ export const AllergenRadarScreen: React.FC = () => {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-100">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[#65a30d] text-lg">shield</span>
+                    <span className="material-symbols-outlined text-[#5379EE] text-lg">shield</span>
                     <h2 className="text-base font-bold text-[#0f172a]">Active Allergen Radar</h2>
                   </div>
                   <p className="text-xs text-[#64748b]">Click any chip to toggle monitoring state and calibrate clinical tolerance.</p>
@@ -114,8 +114,8 @@ export const AllergenRadarScreen: React.FC = () => {
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#fffbeb] text-[#d97706] font-mono-tech text-[10px] font-bold">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#d97706]"></span> Intolerance
                   </span>
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#ecfccb] text-[#65a30d] font-mono-tech text-[10px] font-bold">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#84cc16]"></span> Sensitivity
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#EEF2FF] text-[#2563EB] font-mono-tech text-[10px] font-bold">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#5379EE]"></span> Sensitivity
                   </span>
                 </div>
               </div>
@@ -132,7 +132,7 @@ export const AllergenRadarScreen: React.FC = () => {
                           ? 'bg-[#fff1f2] border-[#ffdad6] shadow-xs'
                           : item.tier === 2
                           ? 'bg-[#fffbeb] border-[#fde68a] shadow-xs'
-                          : 'bg-[#f7fee7] border-[#d9f99d] shadow-xs'
+                          : 'bg-[#EEF2FF] border-[#C7D2FE] shadow-xs'
                         : 'bg-[#f8fafc] border-slate-100 hover:bg-slate-100 opacity-60'
                     }`}
                   >
@@ -144,7 +144,7 @@ export const AllergenRadarScreen: React.FC = () => {
                               ? 'bg-[#ffdad6] text-[#e11d48]'
                               : item.tier === 2
                               ? 'bg-[#fef3c7] text-[#d97706]'
-                              : 'bg-[#ecfccb] text-[#65a30d]'
+                              : 'bg-[#EEF2FF] text-[#2563EB]'
                             : 'bg-slate-200 text-[#64748b]'
                         }`}
                       >
@@ -158,7 +158,7 @@ export const AllergenRadarScreen: React.FC = () => {
                               ? 'text-[#e11d48]'
                               : item.tier === 2
                               ? 'text-[#d97706]'
-                              : 'text-[#65a30d]'
+                              : 'text-[#2563EB]'
                           }`}
                         >
                           Tier {item.tier} • {item.tierLabel}
@@ -173,7 +173,7 @@ export const AllergenRadarScreen: React.FC = () => {
                             ? 'bg-[#e11d48] text-white'
                             : item.tier === 2
                             ? 'bg-[#d97706] text-white'
-                            : 'bg-[#65a30d] text-white'
+                            : 'bg-[#5379EE] text-white'
                           : 'bg-slate-200 text-[#64748b]'
                       }`}
                     >
@@ -187,7 +187,7 @@ export const AllergenRadarScreen: React.FC = () => {
             {/* Section 2: Custom Watchlist & E-Numbers */}
             <section className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-100 shadow-xs space-y-4">
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[#65a30d] text-lg">filter_alt</span>
+                <span className="material-symbols-outlined text-[#5379EE] text-lg">filter_alt</span>
                 <h2 className="text-base font-bold text-[#0f172a]">Chemical &amp; E-Number Watchlist</h2>
               </div>
               <p className="text-xs text-[#64748b]">
@@ -206,12 +206,12 @@ export const AllergenRadarScreen: React.FC = () => {
                     value={customInput}
                     onChange={(e) => setCustomInput(e.target.value)}
                     placeholder="e.g. Red Dye #40, Titanium Dioxide (E171), MSG (E621)..."
-                    className="w-full h-11 pl-10 pr-4 rounded-full bg-[#f8fafc] border border-[#e2e8f0] text-xs text-[#0f172a] outline-none focus:bg-white focus:ring-2 focus:ring-[#84cc16]/20 focus:border-[#84cc16] transition-all"
+                    className="w-full h-11 pl-10 pr-4 rounded-full bg-[#f8fafc] border border-[#e2e8f0] text-xs text-[#0f172a] outline-none focus:bg-white focus:ring-2 focus:ring-[#5379EE]/20 focus:border-[#5379EE] transition-all"
                   />
                 </div>
                 <button
                   type="submit"
-                  className="w-full sm:w-auto h-11 px-6 rounded-full bg-[#84cc16] hover:bg-[#65a30d] text-[#0f172a] hover:text-white font-mono-tech text-xs font-bold transition-all shadow-xs shrink-0 flex items-center justify-center gap-1.5"
+                  className="w-full sm:w-auto h-11 px-6 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white font-mono-tech text-xs font-bold transition-all shadow-xs shrink-0 flex items-center justify-center gap-1.5"
                 >
                   <span className="material-symbols-outlined text-base">add</span>
                   <span>Add to Watchlist</span>
@@ -225,7 +225,7 @@ export const AllergenRadarScreen: React.FC = () => {
                     key={idx}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#f1f5f9] text-[#1e293b] font-mono-tech text-xs font-medium border border-slate-200/50"
                   >
-                    <span className="w-2 h-2 rounded-full bg-[#84cc16]"></span>
+                    <span className="w-2 h-2 rounded-full bg-[#5379EE]"></span>
                     <span>{item}</span>
                     <button
                       type="button"
@@ -290,7 +290,7 @@ export const AllergenRadarScreen: React.FC = () => {
             {/* Sensory Feedback Matrix */}
             <section className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-100 shadow-xs space-y-4">
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[#65a30d] text-lg">vibration</span>
+                <span className="material-symbols-outlined text-[#5379EE] text-lg">vibration</span>
                 <h2 className="text-base font-bold text-[#0f172a]">Scan Sentry Feedback</h2>
               </div>
               <p className="text-xs text-[#64748b]">Hardware triggers designed for high-distraction, crowded grocery aisles.</p>
@@ -312,7 +312,7 @@ export const AllergenRadarScreen: React.FC = () => {
                     type="button"
                     onClick={() => toggleSentrySetting('pushTakeover')}
                     className={`w-11 h-6 rounded-full p-0.5 transition-colors shrink-0 cursor-pointer ${
-                      userProfile.sentrySettings.pushTakeover ? 'bg-[#84cc16]' : 'bg-slate-300'
+                      userProfile.sentrySettings.pushTakeover ? 'bg-[#5379EE]' : 'bg-slate-300'
                     }`}
                   >
                     <div
@@ -341,7 +341,7 @@ export const AllergenRadarScreen: React.FC = () => {
                       if (!userProfile.sentrySettings.audibleTone) sensoryEngine.playHazardTone();
                     }}
                     className={`w-11 h-6 rounded-full p-0.5 transition-colors shrink-0 cursor-pointer ${
-                      userProfile.sentrySettings.audibleTone ? 'bg-[#84cc16]' : 'bg-slate-300'
+                      userProfile.sentrySettings.audibleTone ? 'bg-[#5379EE]' : 'bg-slate-300'
                     }`}
                   >
                     <div
@@ -355,7 +355,7 @@ export const AllergenRadarScreen: React.FC = () => {
                 {/* Toggle 3: Haptic Pulse Sequence */}
                 <div className="flex items-start justify-between gap-3 p-3.5 rounded-2xl bg-[#f8fafc] border border-slate-100">
                   <div className="flex items-start gap-2.5">
-                    <span className="material-symbols-outlined text-[#65a30d] text-lg mt-0.5">phonelink_ring</span>
+                    <span className="material-symbols-outlined text-[#5379EE] text-lg mt-0.5">phonelink_ring</span>
                     <div>
                       <div className="text-xs font-bold text-[#0f172a]">Triple Haptic Pulse Sequence</div>
                       <div className="text-[11px] text-[#64748b] leading-relaxed">
@@ -370,7 +370,7 @@ export const AllergenRadarScreen: React.FC = () => {
                       if (!userProfile.sentrySettings.hapticPulse) sensoryEngine.triggerHaptic();
                     }}
                     className={`w-11 h-6 rounded-full p-0.5 transition-colors shrink-0 cursor-pointer ${
-                      userProfile.sentrySettings.hapticPulse ? 'bg-[#84cc16]' : 'bg-slate-300'
+                      userProfile.sentrySettings.hapticPulse ? 'bg-[#5379EE]' : 'bg-slate-300'
                     }`}
                   >
                     <div
@@ -396,7 +396,7 @@ export const AllergenRadarScreen: React.FC = () => {
                     type="button"
                     onClick={() => toggleSentrySetting('caregiverDispatch')}
                     className={`w-11 h-6 rounded-full p-0.5 transition-colors shrink-0 cursor-pointer ${
-                      userProfile.sentrySettings.caregiverDispatch ? 'bg-[#84cc16]' : 'bg-slate-300'
+                      userProfile.sentrySettings.caregiverDispatch ? 'bg-[#5379EE]' : 'bg-slate-300'
                     }`}
                   >
                     <div
@@ -433,7 +433,7 @@ export const AllergenRadarScreen: React.FC = () => {
                   <span className="font-semibold text-[11px]">Advisory (PAL)</span>
                 </div>
                 <div className="bg-white p-2.5 rounded-xl flex items-center gap-1.5 shadow-xs">
-                  <span className="material-symbols-outlined text-[#65a30d] text-base">check_circle</span>
+                  <span className="material-symbols-outlined text-[#5379EE] text-base">check_circle</span>
                   <span className="font-semibold text-[11px]">Codex Rules</span>
                 </div>
               </div>
@@ -443,8 +443,8 @@ export const AllergenRadarScreen: React.FC = () => {
             <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-3">
               <div className="flex items-center justify-between">
                 <span className="font-mono-tech text-xs text-[#64748b]">Cloud Sync Status:</span>
-                <span className="inline-flex items-center gap-1 font-mono-tech text-xs text-[#65a30d] font-bold">
-                  <span className="w-2 h-2 rounded-full bg-[#84cc16] animate-pulse"></span>
+                <span className="inline-flex items-center gap-1 font-mono-tech text-xs text-[#5379EE] font-bold">
+                  <span className="w-2 h-2 rounded-full bg-[#5379EE] animate-pulse"></span>
                   All Synced to Mobile App
                 </span>
               </div>
@@ -452,7 +452,7 @@ export const AllergenRadarScreen: React.FC = () => {
               <button
                 type="button"
                 onClick={handleSaveAndSync}
-                className="w-full h-12 rounded-full bg-[#84cc16] hover:bg-[#65a30d] text-[#0f172a] hover:text-white font-mono-tech text-xs font-bold transition-all shadow-[0_4px_16px_rgba(132,204,22,0.25)] flex items-center justify-center gap-2 active:scale-[0.98]"
+                className="w-full h-12 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white font-mono-tech text-xs font-bold transition-all shadow-[0_4px_16px_rgba(83,121,238,0.3)] flex items-center justify-center gap-2 active:scale-[0.98]"
               >
                 <span className="material-symbols-outlined text-lg">cloud_sync</span>
                 <span>{syncFeedback || 'Save & Synchronize Allergen Profile'}</span>

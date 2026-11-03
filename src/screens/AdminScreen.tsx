@@ -7,6 +7,8 @@ export const AdminScreen: React.FC = () => {
     products,
     updateProduct,
     addNewProduct,
+    reseedDatabase,
+    isSeeding,
     additivePolicies,
     toggleAdditivePolicy,
     setSelectedProductId,
@@ -125,7 +127,7 @@ export const AdminScreen: React.FC = () => {
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-20 sm:bottom-6 right-6 z-50 p-3.5 bg-[#0f172a] text-white rounded-2xl shadow-xl flex items-center gap-2 text-xs font-semibold animate-in slide-in-from-bottom-2">
-          <span className="material-symbols-outlined text-[#84cc16] text-base">check_circle</span>
+          <span className="material-symbols-outlined text-[#5379EE] text-base">check_circle</span>
           <span>{toastMessage}</span>
         </div>
       )}
@@ -134,21 +136,38 @@ export const AdminScreen: React.FC = () => {
         {/* Top System Bar & Environment Badges */}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#ecfccb] text-[#65a30d] font-mono-tech text-xs font-bold shadow-xs">
-              <span className="w-2 h-2 rounded-full bg-[#84cc16]"></span>
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EEF2FF] text-[#5379EE] font-mono-tech text-xs font-bold shadow-xs">
+              <span className="w-2 h-2 rounded-full bg-[#5379EE]"></span>
               <span>ADMIN PORTAL • v2.4.9</span>
             </div>
             <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#f1f5f9] text-[#565e74] font-mono-tech text-xs">
               <span className="material-symbols-outlined text-sm">dns</span>
               <span>Prod Cluster (US-East)</span>
             </div>
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#f1f5f9] text-[#65a30d] font-mono-tech text-xs">
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#f1f5f9] text-[#5379EE] font-mono-tech text-xs">
               <span className="material-symbols-outlined text-sm">favorite</span>
               <span>Database Status: Healthy (99.99%)</span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              disabled={isSeeding}
+              onClick={async () => {
+                try {
+                  await reseedDatabase();
+                  showToast('Successfully seeded 52 products & policies into Firestore!');
+                } catch (err: any) {
+                  showToast(`Seeding notice: ${err?.message || 'Check connection'}`);
+                }
+              }}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white font-mono-tech text-xs font-bold transition-all shadow-xs disabled:opacity-50 cursor-pointer"
+            >
+              <span className={`material-symbols-outlined text-sm ${isSeeding ? 'animate-spin' : ''}`}>
+                {isSeeding ? 'refresh' : 'cloud_sync'}
+              </span>
+              <span>{isSeeding ? 'Seeding to Cloud...' : `Sync 52 Products to DB (${products.length})`}</span>
+            </button>
             <button
               onClick={() => showToast('Audit logs exported to CSV & JSON format.')}
               className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#f1f5f9] hover:bg-slate-200 text-[#0f172a] font-mono-tech text-xs font-bold transition-all shadow-xs"
@@ -157,15 +176,8 @@ export const AdminScreen: React.FC = () => {
               <span>Export Audit Logs</span>
             </button>
             <button
-              onClick={() => showToast('Edge CDN cache purged and rule matrix re-deployed.')}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#ecfccb] hover:bg-[#d9f99d] text-[#65a30d] font-mono-tech text-xs font-bold transition-all shadow-xs"
-            >
-              <span className="material-symbols-outlined text-sm">bolt</span>
-              <span>Deploy Matrix to Edge CDN</span>
-            </button>
-            <button
               onClick={() => setShowNewModal(true)}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#84cc16] hover:bg-[#65a30d] text-[#0f172a] hover:text-white font-mono-tech text-xs font-bold transition-all shadow-sm"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#0f172a] hover:bg-slate-800 text-white font-mono-tech text-xs font-bold transition-all shadow-sm"
             >
               <span className="material-symbols-outlined text-sm">add</span>
               <span>+ New Product Entry</span>
@@ -184,7 +196,7 @@ export const AdminScreen: React.FC = () => {
               value={adminSearch}
               onChange={(e) => setAdminSearch(e.target.value)}
               placeholder="Search UPC barcode, food brand, additive E-code, or user profile ID..."
-              className="w-full h-12 pl-11 pr-24 rounded-full bg-white text-[#0f172a] placeholder:text-[#94a3b8] text-xs font-medium border border-slate-200 shadow-xs outline-none focus:bg-[#f7fee7] focus:border-[#84cc16] transition-all"
+              className="w-full h-12 pl-11 pr-24 rounded-full bg-white text-[#0f172a] placeholder:text-[#94a3b8] text-xs font-medium border border-slate-200 shadow-xs outline-none focus:bg-[#EEF2FF]/40 focus:border-[#5379EE] transition-all"
             />
             <div className="absolute right-4 flex items-center gap-1">
               <kbd className="px-2 py-0.5 rounded bg-slate-100 font-mono-tech text-[10px] text-[#64748b]">⌘</kbd>
@@ -203,17 +215,17 @@ export const AdminScreen: React.FC = () => {
                 </span>
                 <span className="text-3xl font-extrabold text-[#0f172a] mt-1 block">14,820</span>
               </div>
-              <div className="w-10 h-10 rounded-full bg-[#ecfccb] flex items-center justify-center text-[#65a30d]">
+              <div className="w-10 h-10 rounded-full bg-[#EEF2FF] flex items-center justify-center text-[#5379EE]">
                 <span className="material-symbols-outlined text-xl">nutrition</span>
               </div>
             </div>
             <div className="flex items-center gap-2 mt-4 text-xs">
-              <span className="flex items-center text-[#65a30d] font-mono-tech font-bold">
+              <span className="flex items-center text-[#5379EE] font-mono-tech font-bold">
                 <span className="material-symbols-outlined text-xs">trending_up</span> +4.2%
               </span>
               <span className="text-[#64748b]">from last week (+593 items)</span>
             </div>
-            <div className="absolute bottom-0 left-0 right-0 h-1 bg-[#84cc16]"></div>
+            <div className="absolute bottom-0 left-0 right-0 h-1 bg-[#5379EE]"></div>
           </div>
 
           <div className="relative overflow-hidden bg-white rounded-3xl p-6 border border-slate-100 shadow-xs">
@@ -224,17 +236,17 @@ export const AdminScreen: React.FC = () => {
                 </span>
                 <span className="text-3xl font-extrabold text-[#0f172a] mt-1 block">3,450</span>
               </div>
-              <div className="w-10 h-10 rounded-full bg-[#f7fee7] flex items-center justify-center text-[#65a30d]">
+              <div className="w-10 h-10 rounded-full bg-[#EEF2FF] flex items-center justify-center text-[#5379EE]">
                 <span className="material-symbols-outlined text-xl">verified_user</span>
               </div>
             </div>
             <div className="flex items-center gap-2 mt-4 text-xs">
-              <span className="px-2 py-0.5 rounded-full bg-[#ecfccb] text-[#65a30d] font-mono-tech text-[10px] font-bold">
+              <span className="px-2 py-0.5 rounded-full bg-[#EEF2FF] text-[#5379EE] font-mono-tech text-[10px] font-bold">
                 100% VERIFIED
               </span>
               <span className="text-[#64748b]">EU EFSA &amp; US FDA Synced</span>
             </div>
-            <div className="absolute bottom-0 left-0 right-0 h-1 bg-[#65a30d]"></div>
+            <div className="absolute bottom-0 left-0 right-0 h-1 bg-[#4368DD]"></div>
           </div>
 
           <div className="relative overflow-hidden bg-white rounded-3xl p-6 border border-slate-100 shadow-xs">
@@ -250,7 +262,7 @@ export const AdminScreen: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center gap-2 mt-4 text-xs">
-              <span className="flex items-center text-[#65a30d] font-mono-tech font-bold">
+              <span className="flex items-center text-[#5379EE] font-mono-tech font-bold">
                 <span className="material-symbols-outlined text-xs">arrow_upward</span> +18 today
               </span>
               <span className="text-[#64748b]">542 custom radars</span>
@@ -345,7 +357,7 @@ export const AdminScreen: React.FC = () => {
               {filteredCatalog.map((prod) => (
                 <div
                   key={prod.id}
-                  className="bg-white rounded-3xl p-6 border border-slate-100 shadow-xs hover:border-[#84cc16]/50 transition-all space-y-3"
+                  className="bg-white rounded-3xl p-6 border border-slate-100 shadow-xs hover:border-[#5379EE]/50 transition-all space-y-3"
                 >
                   <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                     <div className="flex items-start gap-4">
@@ -360,7 +372,7 @@ export const AdminScreen: React.FC = () => {
                           <span
                             className={`px-2 py-0.5 rounded font-mono-tech text-[10px] font-bold uppercase ${
                               prod.isVerified
-                                ? 'bg-[#ecfccb] text-[#65a30d]'
+                                ? 'bg-[#EEF2FF] text-[#5379EE]'
                                 : 'bg-[#fffbeb] text-[#d97706]'
                             }`}
                           >
@@ -385,7 +397,7 @@ export const AdminScreen: React.FC = () => {
                               <span>{a}</span>
                             </span>
                           ))}
-                          <span className="px-2.5 py-0.5 rounded-full bg-[#ecfccb] text-[#65a30d] font-mono-tech text-[10px] font-bold">
+                          <span className="px-2.5 py-0.5 rounded-full bg-[#EEF2FF] text-[#5379EE] font-mono-tech text-[10px] font-bold">
                             ✓ Score {prod.nutriScore}
                           </span>
                         </div>
@@ -400,7 +412,7 @@ export const AdminScreen: React.FC = () => {
                           <span>{prod.userReportsCount} user reports pending</span>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-1 text-[#65a30d] font-mono-tech text-[10px] bg-[#ecfccb] px-2.5 py-1 rounded-full font-bold">
+                        <div className="flex items-center gap-1 text-[#5379EE] font-mono-tech text-[10px] bg-[#EEF2FF] px-2.5 py-1 rounded-full font-bold">
                           <span className="material-symbols-outlined text-xs">verified</span>
                           <span>Auto-Audited Today</span>
                         </div>
@@ -421,7 +433,7 @@ export const AdminScreen: React.FC = () => {
                             updateProduct({ ...prod, isVerified: true, moderationStatus: 'approved' });
                             showToast(`Verified & published ${prod.name}!`);
                           }}
-                          className="px-4 py-1.5 rounded-full bg-[#84cc16] hover:bg-[#65a30d] text-[#0f172a] hover:text-white font-mono-tech text-xs font-bold transition-all shadow-xs"
+                          className="px-4 py-1.5 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white font-mono-tech text-xs font-bold transition-all shadow-xs"
                         >
                           Verify &amp; Publish
                         </button>
@@ -449,10 +461,10 @@ export const AdminScreen: React.FC = () => {
             <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-xs space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#84cc16] animate-pulse"></span>
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#5379EE] animate-pulse"></span>
                   <h2 className="text-sm font-bold text-[#0f172a]">Live Radar Logs</h2>
                 </div>
-                <span className="font-mono-tech text-[10px] px-2 py-0.5 rounded bg-[#ecfccb] text-[#65a30d] font-bold">
+                <span className="font-mono-tech text-[10px] px-2 py-0.5 rounded bg-[#EEF2FF] text-[#5379EE] font-bold">
                   REAL-TIME
                 </span>
               </div>
@@ -475,7 +487,7 @@ export const AdminScreen: React.FC = () => {
                 </div>
 
                 <div className="p-3 rounded-2xl bg-[#f8fafc] border border-slate-100 flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-[#ecfccb] text-[#65a30d] flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-[#EEF2FF] text-[#5379EE] flex items-center justify-center shrink-0">
                     <span className="material-symbols-outlined text-base">person_edit</span>
                   </div>
                   <div className="min-w-0">
@@ -484,7 +496,7 @@ export const AdminScreen: React.FC = () => {
                       <span className="text-[10px] text-[#64748b]">14m ago</span>
                     </div>
                     <p className="text-[11px] text-[#64748b] truncate">User #9011 added Celiac/Gluten filter</p>
-                    <span className="font-mono-tech text-[10px] text-[#65a30d] font-bold block mt-0.5">
+                    <span className="font-mono-tech text-[10px] text-[#5379EE] font-bold block mt-0.5">
                       Radar sensitivity recalibrated
                     </span>
                   </div>
@@ -522,7 +534,7 @@ export const AdminScreen: React.FC = () => {
                   <h2 className="text-sm font-bold text-[#0f172a]">Additive Policy Engine</h2>
                   <p className="text-xs text-[#64748b]">Configure scanning risk rules &amp; E-Code alerts</p>
                 </div>
-                <span className="material-symbols-outlined text-[#65a30d]">tune</span>
+                <span className="material-symbols-outlined text-[#5379EE]">tune</span>
               </div>
 
               <div className="space-y-3">
@@ -530,12 +542,12 @@ export const AdminScreen: React.FC = () => {
                   <div
                     key={policy.eCode}
                     className={`p-3.5 rounded-2xl border space-y-2 transition-all ${
-                      policy.isEnforced ? 'bg-[#f7fee7] border-[#d9f99d]' : 'bg-[#f8fafc] border-slate-100'
+                      policy.isEnforced ? 'bg-[#EEF2FF] border-[#c7d2fe]' : 'bg-[#f8fafc] border-slate-100'
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="px-2 py-0.5 rounded bg-white text-[#65a30d] font-mono-tech font-bold text-[10px] border border-slate-200/50">
+                        <span className="px-2 py-0.5 rounded bg-white text-[#5379EE] font-mono-tech font-bold text-[10px] border border-slate-200/50">
                           {policy.eCode}
                         </span>
                         <span className="text-xs font-bold text-[#0f172a]">{policy.name}</span>
@@ -544,7 +556,7 @@ export const AdminScreen: React.FC = () => {
                         type="button"
                         onClick={() => toggleAdditivePolicy(policy.eCode)}
                         className={`w-11 h-6 rounded-full p-0.5 transition-colors cursor-pointer ${
-                          policy.isEnforced ? 'bg-[#84cc16]' : 'bg-slate-300'
+                          policy.isEnforced ? 'bg-[#5379EE]' : 'bg-slate-300'
                         }`}
                       >
                         <div
@@ -555,7 +567,7 @@ export const AdminScreen: React.FC = () => {
                       </button>
                     </div>
                     <p className="text-xs text-[#64748b] leading-relaxed">{policy.description}</p>
-                    <div className="flex items-center gap-1.5 text-[10px] text-[#65a30d] font-mono-tech font-bold">
+                    <div className="flex items-center gap-1.5 text-[10px] text-[#5379EE] font-mono-tech font-bold">
                       <span className="material-symbols-outlined text-xs">
                         {policy.isEnforced ? 'check_circle' : 'pause_circle'}
                       </span>
@@ -610,7 +622,7 @@ export const AdminScreen: React.FC = () => {
                     value={newBarcode}
                     onChange={(e) => setNewBarcode(e.target.value)}
                     placeholder="e.g. 012345678901"
-                    className="w-full h-10 px-3 rounded-xl bg-[#f8fafc] border border-slate-200 text-xs text-[#0f172a] outline-none focus:border-[#84cc16]"
+                    className="w-full h-10 px-3 rounded-xl bg-[#f8fafc] border border-slate-200 text-xs text-[#0f172a] outline-none focus:border-[#5379EE]"
                   />
                 </div>
                 <div className="space-y-1">
@@ -637,7 +649,7 @@ export const AdminScreen: React.FC = () => {
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   placeholder="e.g. PureSeed Ancient Grain & Flax Bar"
-                  className="w-full h-10 px-3 rounded-xl bg-[#f8fafc] border border-slate-200 text-xs text-[#0f172a] outline-none focus:border-[#84cc16]"
+                  className="w-full h-10 px-3 rounded-xl bg-[#f8fafc] border border-slate-200 text-xs text-[#0f172a] outline-none focus:border-[#5379EE]"
                 />
               </div>
 
@@ -649,7 +661,7 @@ export const AdminScreen: React.FC = () => {
                     value={newBrand}
                     onChange={(e) => setNewBrand(e.target.value)}
                     placeholder="e.g. PureSeed Co."
-                    className="w-full h-10 px-3 rounded-xl bg-[#f8fafc] border border-slate-200 text-xs text-[#0f172a] outline-none focus:border-[#84cc16]"
+                    className="w-full h-10 px-3 rounded-xl bg-[#f8fafc] border border-slate-200 text-xs text-[#0f172a] outline-none focus:border-[#5379EE]"
                   />
                 </div>
                 <div className="space-y-1">
@@ -659,7 +671,7 @@ export const AdminScreen: React.FC = () => {
                     value={newWeight}
                     onChange={(e) => setNewWeight(e.target.value)}
                     placeholder="e.g. 45g"
-                    className="w-full h-10 px-3 rounded-xl bg-[#f8fafc] border border-slate-200 text-xs text-[#0f172a] outline-none focus:border-[#84cc16]"
+                    className="w-full h-10 px-3 rounded-xl bg-[#f8fafc] border border-slate-200 text-xs text-[#0f172a] outline-none focus:border-[#5379EE]"
                   />
                 </div>
               </div>
@@ -673,14 +685,14 @@ export const AdminScreen: React.FC = () => {
                   value={newAllergens}
                   onChange={(e) => setNewAllergens(e.target.value)}
                   placeholder="e.g. Almonds, Soy Lecithin"
-                  className="w-full h-10 px-3 rounded-xl bg-[#f8fafc] border border-slate-200 text-xs text-[#0f172a] outline-none focus:border-[#84cc16]"
+                  className="w-full h-10 px-3 rounded-xl bg-[#f8fafc] border border-slate-200 text-xs text-[#0f172a] outline-none focus:border-[#5379EE]"
                 />
               </div>
 
               <div className="flex gap-2.5 pt-3 border-t border-slate-100">
                 <button
                   type="submit"
-                  className="flex-1 h-11 rounded-full bg-[#84cc16] hover:bg-[#65a30d] text-[#0f172a] hover:text-white font-mono-tech text-xs font-bold transition-all shadow-sm"
+                  className="flex-1 h-11 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white font-mono-tech text-xs font-bold transition-all shadow-sm"
                 >
                   Publish to Catalog
                 </button>

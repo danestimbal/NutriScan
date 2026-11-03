@@ -21,6 +21,9 @@ export interface UserAllergenProfile {
     hapticPulse: boolean;
     caregiverDispatch: boolean;
   };
+  dietaryPreferences?: string[];
+  healthGoals?: string[];
+  profileCompleted?: boolean;
   lastSynced?: string;
 }
 

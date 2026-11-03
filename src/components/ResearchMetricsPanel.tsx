@@ -63,10 +63,10 @@ export const ResearchMetricsPanel: React.FC = () => {
   return (
     <div className="bg-white rounded-3xl border border-slate-100 shadow-xs overflow-hidden">
       {/* Header with Research Study Badge */}
-      <div className="p-6 sm:p-7 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-white via-[#f7fee7]/40 to-white">
+      <div className="p-6 sm:p-7 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-white via-[#EEF2FF]/60 to-white">
         <div>
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-mono-tech text-[10px] text-[#65a30d] font-bold uppercase tracking-wider bg-[#ecfccb] px-2.5 py-0.5 rounded-full">
+            <span className="font-mono-tech text-[10px] text-[#5379EE] font-bold uppercase tracking-wider bg-[#EEF2FF] px-2.5 py-0.5 rounded-full">
               RS-IV Plan Alignment &amp; Section C1–C3
             </span>
             <span className="text-[11px] text-[#64748b] font-medium">
@@ -75,7 +75,7 @@ export const ResearchMetricsPanel: React.FC = () => {
           </div>
           <h2 className="text-xl font-extrabold text-[#0f172a] mt-1 flex items-center gap-2">
             <span>IngreGuide Scientific Evaluation &amp; Metrics</span>
-            <span className="material-symbols-outlined text-[#65a30d] text-xl">analytics</span>
+            <span className="material-symbols-outlined text-[#5379EE] text-xl">analytics</span>
           </h2>
           <p className="text-xs text-[#64748b] mt-0.5">
             Empirical validation metrics per proponents: <strong>Micharre Ayonei P. Virgo</strong>, <strong>Charlize P. Cataag</strong>, &amp; <strong>Precious Abby H. Pacleb</strong>.
@@ -99,7 +99,7 @@ export const ResearchMetricsPanel: React.FC = () => {
           onClick={() => setActiveTab('metrics')}
           className={`py-3 px-4 font-mono-tech text-xs font-bold border-b-2 transition-all shrink-0 ${
             activeTab === 'metrics'
-              ? 'border-[#84cc16] text-[#65a30d]'
+              ? 'border-[#5379EE] text-[#5379EE]'
               : 'border-transparent text-[#64748b] hover:text-[#0f172a]'
           }`}
         >
@@ -109,7 +109,7 @@ export const ResearchMetricsPanel: React.FC = () => {
           onClick={() => setActiveTab('rnd-panel')}
           className={`py-3 px-4 font-mono-tech text-xs font-bold border-b-2 transition-all shrink-0 ${
             activeTab === 'rnd-panel'
-              ? 'border-[#84cc16] text-[#65a30d]'
+              ? 'border-[#5379EE] text-[#5379EE]'
               : 'border-transparent text-[#64748b] hover:text-[#0f172a]'
           }`}
         >
@@ -119,7 +119,7 @@ export const ResearchMetricsPanel: React.FC = () => {
           onClick={() => setActiveTab('trial-tester')}
           className={`py-3 px-4 font-mono-tech text-xs font-bold border-b-2 transition-all shrink-0 ${
             activeTab === 'trial-tester'
-              ? 'border-[#84cc16] text-[#65a30d]'
+              ? 'border-[#5379EE] text-[#5379EE]'
               : 'border-transparent text-[#64748b] hover:text-[#0f172a]'
           }`}
         >
@@ -129,7 +129,7 @@ export const ResearchMetricsPanel: React.FC = () => {
           onClick={() => setActiveTab('ethics')}
           className={`py-3 px-4 font-mono-tech text-xs font-bold border-b-2 transition-all shrink-0 ${
             activeTab === 'ethics'
-              ? 'border-[#84cc16] text-[#65a30d]'
+              ? 'border-[#5379EE] text-[#5379EE]'
               : 'border-transparent text-[#64748b] hover:text-[#0f172a]'
           }`}
         >
@@ -145,10 +145,10 @@ export const ResearchMetricsPanel: React.FC = () => {
             <div className="bg-[#f8fafc] border border-slate-200/80 rounded-2xl p-5 flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="font-mono-tech text-[10px] text-[#65a30d] font-bold uppercase tracking-wider">
+                  <span className="font-mono-tech text-[10px] text-[#5379EE] font-bold uppercase tracking-wider">
                     Formula 1 • Accuracy
                   </span>
-                  <span className="px-2 py-0.5 bg-[#ecfccb] text-[#65a30d] rounded-full font-mono-tech text-[10px] font-bold">
+                  <span className="px-2 py-0.5 bg-[#EEF2FF] text-[#2563EB] rounded-full font-mono-tech text-[10px] font-bold">
                     Lai &amp; Wong (2023)
                   </span>
                 </div>
@@ -173,10 +173,10 @@ export const ResearchMetricsPanel: React.FC = () => {
             <div className="bg-[#f8fafc] border border-slate-200/80 rounded-2xl p-5 flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="font-mono-tech text-[10px] text-[#65a30d] font-bold uppercase tracking-wider">
+                  <span className="font-mono-tech text-[10px] text-[#5379EE] font-bold uppercase tracking-wider">
                     Formula 2 • Usability
                   </span>
-                  <span className="px-2 py-0.5 bg-[#ecfccb] text-[#65a30d] rounded-full font-mono-tech text-[10px] font-bold">
+                  <span className="px-2 py-0.5 bg-[#EEF2FF] text-[#2563EB] rounded-full font-mono-tech text-[10px] font-bold">
                     Park et al. (2024)
                   </span>
                 </div>
@@ -201,10 +201,10 @@ export const ResearchMetricsPanel: React.FC = () => {
             <div className="bg-[#f8fafc] border border-slate-200/80 rounded-2xl p-5 flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="font-mono-tech text-[10px] text-[#65a30d] font-bold uppercase tracking-wider">
+                  <span className="font-mono-tech text-[10px] text-[#5379EE] font-bold uppercase tracking-wider">
                     Formula 3 • Latency
                   </span>
-                  <span className="px-2 py-0.5 bg-[#ecfccb] text-[#65a30d] rounded-full font-mono-tech text-[10px] font-bold">
+                  <span className="px-2 py-0.5 bg-[#EEF2FF] text-[#2563EB] rounded-full font-mono-tech text-[10px] font-bold">
                     MRT Standard
                   </span>
                 </div>
@@ -227,9 +227,9 @@ export const ResearchMetricsPanel: React.FC = () => {
           </div>
 
           {/* Research Context Callout */}
-          <div className="bg-[#f7fee7] border border-[#d9f99d] p-4 rounded-2xl flex items-start gap-3">
-            <span className="material-symbols-outlined text-[#65a30d] text-xl shrink-0 mt-0.5">school</span>
-            <div className="text-xs text-[#3f6212] space-y-1">
+          <div className="bg-[#EEF2FF] border border-[#C7D2FE] p-4 rounded-2xl flex items-start gap-3">
+            <span className="material-symbols-outlined text-[#5379EE] text-xl shrink-0 mt-0.5">school</span>
+            <div className="text-xs text-[#1e3a8a] space-y-1">
               <p className="font-bold">
                 Science Investigatory Project Alignment (RS-IV 2026–2027):
               </p>
@@ -254,7 +254,7 @@ export const ResearchMetricsPanel: React.FC = () => {
               </p>
             </div>
             <div className="text-right">
-              <span className="text-2xl font-extrabold text-[#65a30d]">4.91</span>
+              <span className="text-2xl font-extrabold text-[#5379EE]">4.91</span>
               <span className="text-xs text-[#64748b]"> / 5.0 Composite</span>
             </div>
           </div>
@@ -326,7 +326,7 @@ export const ResearchMetricsPanel: React.FC = () => {
             <button
               onClick={runSingleTrial}
               disabled={isSimulating}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#84cc16] hover:bg-[#65a30d] text-[#0f172a] hover:text-white font-mono-tech text-xs font-bold transition-all shadow-sm active:scale-95 disabled:opacity-50 cursor-pointer"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white font-mono-tech text-xs font-bold transition-all shadow-sm active:scale-95 disabled:opacity-50 cursor-pointer"
             >
               <span className="material-symbols-outlined text-base">play_arrow</span>
               <span>{isSimulating ? 'Executing Trial...' : 'Run Test Trial'}</span>
@@ -334,7 +334,7 @@ export const ResearchMetricsPanel: React.FC = () => {
           </div>
 
           {lastSimulatedTime && (
-            <div className="p-4 rounded-2xl bg-[#ecfccb] text-[#3f6212] flex items-center justify-between">
+            <div className="p-4 rounded-2xl bg-[#EEF2FF] text-[#1e3a8a] flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined">timer</span>
                 <span className="text-xs font-bold">Latest Trial Latency (t<sub>{trialCount}</sub>):</span>
@@ -366,7 +366,7 @@ export const ResearchMetricsPanel: React.FC = () => {
         <div className="p-6 sm:p-7 space-y-4">
           <div className="p-5 rounded-2xl bg-[#f8fafc] border border-slate-200/80 space-y-3">
             <div className="flex items-center gap-2 text-[#0f172a]">
-              <span className="material-symbols-outlined text-[#65a30d]">gavel</span>
+              <span className="material-symbols-outlined text-[#5379EE]">gavel</span>
               <h3 className="font-bold text-sm">Republic Act No. 10173 Compliance (Philippine Data Privacy Act of 2012)</h3>
             </div>
             <p className="text-xs text-[#64748b] leading-relaxed">
@@ -382,7 +382,7 @@ export const ResearchMetricsPanel: React.FC = () => {
 
           <div className="p-5 rounded-2xl bg-[#f8fafc] border border-slate-200/80 space-y-3">
             <div className="flex items-center gap-2 text-[#0f172a]">
-              <span className="material-symbols-outlined text-[#65a30d]">accessibility_new</span>
+              <span className="material-symbols-outlined text-[#5379EE]">accessibility_new</span>
               <h3 className="font-bold text-sm">Accessibility Standard: WCAG 2.2 Level AA</h3>
             </div>
             <p className="text-xs text-[#64748b] leading-relaxed">

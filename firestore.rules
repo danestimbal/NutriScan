@@ -38,14 +38,14 @@ service cloud.firestore {
     // Food product catalog (Global lookup)
     match /products/{productId} {
       allow read: if true;
-      allow create, update: if isSignedIn();
+      allow create, update: if true;
       allow delete: if isSignedIn();
     }
 
     // Additive policy rules engine
     match /additivePolicies/{eCode} {
       allow read: if true;
-      allow create, update: if isSignedIn();
+      allow create, update: if true;
       allow delete: if isSignedIn();
     }
   }

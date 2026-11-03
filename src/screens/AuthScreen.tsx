@@ -2,25 +2,129 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 
 export const AuthScreen: React.FC = () => {
-  const { enterGuestMode, handleGoogleLogin, updateUserProfile, setActiveTab } = useApp();
+  const {
+    enterGuestMode,
+    handleGoogleLogin,
+    handleFacebookLogin,
+    handleEmailLogin,
+    handleEmailRegister,
+    handlePasswordReset,
+    updateUserProfile,
+    setActiveTab,
+  } = useApp();
+
   const [authMode, setAuthMode] = useState<'login' | 'create'>('login');
   const [identifier, setIdentifier] = useState('sarah.chen@nutrition-lab.com');
   const [fullName, setFullName] = useState('Sarah Chen');
-  const [password, setPassword] = useState('••••••••••••');
+  const [password, setPassword] = useState('IngreGuide2026!');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [showFacebookDemoOption, setShowFacebookDemoOption] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage(null);
+    setSuccessMessage(null);
     setLoading(true);
-    setTimeout(() => {
+
+    try {
+      if (authMode === 'create') {
+        if (!fullName.trim()) {
+          setErrorMessage('Please enter your full name.');
+          setLoading(false);
+          return;
+        }
+        await handleEmailRegister(identifier.trim(), password, fullName.trim());
+      } else {
+        await handleEmailLogin(identifier.trim(), password);
+      }
+    } catch (err: any) {
+      console.error('Auth error:', err);
+      let msg = 'Authentication failed. Please verify your credentials.';
+      const code = err?.code || '';
+      if (code === 'auth/email-already-in-use') {
+        msg = 'An account with this email already exists. Please switch to Login.';
+      } else if (code === 'auth/invalid-email') {
+        msg = 'Please enter a valid email address.';
+      } else if (code === 'auth/weak-password') {
+        msg = 'Password should be at least 6 characters long.';
+      } else if (code === 'auth/user-not-found' || code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
+        msg = 'Invalid email or password. Please verify and try again, or register a new account.';
+      } else if (code === 'auth/network-request-failed') {
+        msg = 'Network connection failed. Please check your internet connection.';
+      } else if (err?.message) {
+        msg = err.message;
+      }
+      setErrorMessage(msg);
+    } finally {
       setLoading(false);
-      updateUserProfile({
-        displayName: authMode === 'create' ? fullName || 'Allergy Warrior' : 'Sarah Chen',
-        email: identifier.includes('@') ? identifier : `${identifier}@ingreguide.local`,
-      });
-      setActiveTab('dashboard');
-    }, 600);
+    }
+  };
+
+  const handleGoogleAuth = async () => {
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setLoading(true);
+    try {
+      await handleGoogleLogin();
+    } catch (err: any) {
+      if (err?.code === 'auth/popup-closed-by-user') {
+        setErrorMessage('Google Sign-in was cancelled.');
+      } else if (err?.code === 'auth/popup-blocked') {
+        setErrorMessage('Pop-up was blocked by browser. Please enable pop-ups for this site.');
+      } else {
+        setErrorMessage(err?.message || 'Google Sign-in failed. Please try again.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFacebookAuth = async () => {
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setLoading(true);
+    try {
+      await handleFacebookLogin();
+    } catch (err: any) {
+      if (err?.code === 'auth/popup-closed-by-user') {
+        setErrorMessage('Facebook Sign-in was cancelled.');
+      } else if (err?.code === 'auth/popup-blocked') {
+        setErrorMessage('Pop-up was blocked by browser. Please allow pop-ups for this site.');
+      } else if (
+        err?.code === 'auth/operation-not-allowed' ||
+        err?.code === 'auth/configuration-not-found' ||
+        err?.message?.includes('operation-not-allowed')
+      ) {
+        setErrorMessage(
+          'Facebook Login is not yet enabled in your Firebase Console (requires a Meta App ID & Secret). You can use Google Sign-in or Email/Password, or click below to simulate with a Facebook profile.'
+        );
+        setShowFacebookDemoOption(true);
+      } else {
+        setErrorMessage(err?.message || 'Facebook Sign-in could not be completed.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!identifier || !identifier.includes('@')) {
+      setErrorMessage('Please type a valid email in the Email Address field to receive password reset instructions.');
+      return;
+    }
+    setLoading(true);
+    setErrorMessage(null);
+    try {
+      await handlePasswordReset(identifier.trim());
+      setSuccessMessage(`Password reset link has been dispatched to ${identifier}. Check your inbox.`);
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Could not send reset email. Ensure the email address is correct.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -145,7 +249,7 @@ export const AuthScreen: React.FC = () => {
               </div>
               <div className="h-8 w-px bg-slate-200 hidden sm:block"></div>
               <div className="flex items-center gap-3">
-                <span className="material-symbols-outlined text-[#65a30d] text-2xl">task_alt</span>
+                <span className="material-symbols-outlined text-[#5379EE] text-2xl">task_alt</span>
                 <div>
                   <p className="font-bold text-base text-[#0f172a] leading-none">99.8%</p>
                   <p className="text-xs text-[#64748b] mt-0.5">Allergen Accuracy</p>
@@ -196,11 +300,49 @@ export const AuthScreen: React.FC = () => {
                   </p>
                 </div>
 
+                {/* Error Banner */}
+                {errorMessage && (
+                  <div className="mb-4 p-3.5 rounded-2xl bg-[#fff1f2] border border-[#fecdd3] text-[#e11d48] text-xs flex items-start gap-2.5 animate-in fade-in">
+                    <span className="material-symbols-outlined text-base shrink-0 mt-0.5">error</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold leading-relaxed">{errorMessage}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setErrorMessage(null)}
+                      className="text-[#e11d48] hover:text-[#9f1239]"
+                    >
+                      <span className="material-symbols-outlined text-sm">close</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Success Banner */}
+                {successMessage && (
+                  <div className="mb-4 p-3.5 rounded-2xl bg-[#ecfdf5] border border-[#a7f3d0] text-[#059669] text-xs flex items-start gap-2.5 animate-in fade-in">
+                    <span className="material-symbols-outlined text-base shrink-0 mt-0.5">check_circle</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold leading-relaxed">{successMessage}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSuccessMessage(null)}
+                      className="text-[#059669] hover:text-[#065f46]"
+                    >
+                      <span className="material-symbols-outlined text-sm">close</span>
+                    </button>
+                  </div>
+                )}
+
                 {/* Segmented Mode Selector */}
                 <div className="flex bg-[#eef2ff] p-1 rounded-full mb-5">
                   <button
                     type="button"
-                    onClick={() => setAuthMode('login')}
+                    onClick={() => {
+                      setAuthMode('login');
+                      setErrorMessage(null);
+                      setSuccessMessage(null);
+                    }}
                     className={`flex-1 py-1.5 rounded-full font-mono-tech text-xs font-bold transition-all ${
                       authMode === 'login'
                         ? 'bg-[#5379EE] text-white shadow-xs'
@@ -211,7 +353,11 @@ export const AuthScreen: React.FC = () => {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setAuthMode('create')}
+                    onClick={() => {
+                      setAuthMode('create');
+                      setErrorMessage(null);
+                      setSuccessMessage(null);
+                    }}
                     className={`flex-1 py-1.5 rounded-full font-mono-tech text-xs font-bold transition-all ${
                       authMode === 'create'
                         ? 'bg-[#5379EE] text-white shadow-xs'
@@ -233,7 +379,7 @@ export const AuthScreen: React.FC = () => {
                         type="text"
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
-                        placeholder="Enter your full name"
+                        placeholder="e.g. Maria Santos"
                         className="w-full h-11 px-4 rounded-full bg-white border border-[#cbd5e1] text-sm text-[#0f172a] placeholder:text-[#94a3b8] outline-none focus:border-[#5379EE] focus:ring-2 focus:ring-[#5379EE]/20 transition-all"
                         required
                       />
@@ -245,10 +391,10 @@ export const AuthScreen: React.FC = () => {
                       Email Address
                     </label>
                     <input
-                      type="text"
+                      type="email"
                       value={identifier}
                       onChange={(e) => setIdentifier(e.target.value)}
-                      placeholder="Enter your email"
+                      placeholder="e.g. maria.santos@gmail.com"
                       className="w-full h-11 px-4 rounded-full bg-white border border-[#cbd5e1] text-sm text-[#0f172a] placeholder:text-[#94a3b8] outline-none focus:border-[#5379EE] focus:ring-2 focus:ring-[#5379EE]/20 transition-all"
                       required
                     />
@@ -259,8 +405,8 @@ export const AuthScreen: React.FC = () => {
                       <label className="block text-xs font-bold text-[#1e293b]">Password</label>
                       <button
                         type="button"
-                        onClick={() => alert('Password reset instructions simulated to your email.')}
-                        className="text-[11px] font-medium text-[#5379EE] hover:underline"
+                        onClick={handleForgotPassword}
+                        className="text-[11px] font-medium text-[#5379EE] hover:underline cursor-pointer"
                       >
                         Forgot password?
                       </button>
@@ -270,14 +416,14 @@ export const AuthScreen: React.FC = () => {
                         type={showPassword ? 'text' : 'password'}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        placeholder="Enter your password"
+                        placeholder="Enter your password (min 6 characters)"
                         className="w-full h-11 pl-4 pr-11 rounded-full bg-white border border-[#cbd5e1] text-sm text-[#0f172a] placeholder:text-[#94a3b8] outline-none focus:border-[#5379EE] focus:ring-2 focus:ring-[#5379EE]/20 transition-all"
                         required
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3.5 text-[#5379EE] hover:text-[#4368dd] flex items-center justify-center"
+                        className="absolute right-3.5 text-[#5379EE] hover:text-[#4368dd] flex items-center justify-center cursor-pointer"
                       >
                         <span className="material-symbols-outlined text-xl">
                           {showPassword ? 'visibility_off' : 'visibility'}
@@ -302,7 +448,7 @@ export const AuthScreen: React.FC = () => {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full h-11 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white font-bold text-sm transition-all shadow-[0_4px_16px_rgba(83,121,238,0.35)] active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
+                    className="w-full h-11 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white font-bold text-sm transition-all shadow-[0_4px_16px_rgba(83,121,238,0.35)] active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70"
                   >
                     {loading ? (
                       <span className="material-symbols-outlined text-lg animate-spin">refresh</span>
@@ -316,7 +462,7 @@ export const AuthScreen: React.FC = () => {
                 <div className="relative flex items-center justify-center my-6">
                   <div className="w-full h-px bg-slate-200"></div>
                   <span className="absolute bg-white px-3 text-xs text-[#64748b] font-medium">
-                    or continue with
+                    or continue with SSO
                   </span>
                 </div>
 
@@ -325,9 +471,10 @@ export const AuthScreen: React.FC = () => {
                   {/* Google "G" circular button */}
                   <button
                     type="button"
-                    onClick={handleGoogleLogin}
+                    onClick={handleGoogleAuth}
+                    disabled={loading}
                     title="Sign in with Google"
-                    className="w-12 h-12 rounded-full border border-slate-300 hover:border-[#5379EE] hover:bg-[#eef2ff] flex items-center justify-center transition-all shadow-xs cursor-pointer group"
+                    className="w-12 h-12 rounded-full border border-slate-300 hover:border-[#5379EE] hover:bg-[#eef2ff] flex items-center justify-center transition-all shadow-xs cursor-pointer group disabled:opacity-50"
                   >
                     <span className="font-bold text-[#5379EE] group-hover:scale-110 transition-transform text-lg">
                       G
@@ -337,14 +484,12 @@ export const AuthScreen: React.FC = () => {
                   {/* Facebook "f" circular button */}
                   <button
                     type="button"
-                    onClick={() => {
-                      updateUserProfile({ displayName: 'Facebook User', email: 'user@facebook.com' });
-                      setActiveTab('dashboard');
-                    }}
+                    onClick={handleFacebookAuth}
+                    disabled={loading}
                     title="Sign in with Facebook"
-                    className="w-12 h-12 rounded-full border border-slate-300 hover:border-[#5379EE] hover:bg-[#eef2ff] flex items-center justify-center transition-all shadow-xs cursor-pointer group"
+                    className="w-12 h-12 rounded-full border border-slate-300 hover:border-[#1877F2] hover:bg-[#1877F2]/10 flex items-center justify-center transition-all shadow-xs cursor-pointer group disabled:opacity-50"
                   >
-                    <span className="font-bold text-[#5379EE] group-hover:scale-110 transition-transform text-lg">
+                    <span className="font-bold text-[#1877F2] group-hover:scale-110 transition-transform text-lg">
                       f
                     </span>
                   </button>
@@ -353,8 +498,9 @@ export const AuthScreen: React.FC = () => {
                   <button
                     type="button"
                     onClick={enterGuestMode}
-                    title="Continue as Guest"
-                    className="w-12 h-12 rounded-full border border-slate-300 hover:border-[#5379EE] hover:bg-[#eef2ff] flex items-center justify-center transition-all shadow-xs cursor-pointer group"
+                    disabled={loading}
+                    title="Continue as Guest (Anonymous)"
+                    className="w-12 h-12 rounded-full border border-slate-300 hover:border-[#5379EE] hover:bg-[#eef2ff] flex items-center justify-center transition-all shadow-xs cursor-pointer group disabled:opacity-50"
                   >
                     <span className="material-symbols-outlined text-[#5379EE] text-xl group-hover:scale-110 transition-transform">
                       person
@@ -362,15 +508,45 @@ export const AuthScreen: React.FC = () => {
                   </button>
                 </div>
 
-                {/* Guest Scan Link */}
-                <div className="mt-5 text-center">
+                {/* Optional Facebook Simulated Profile Option */}
+                {showFacebookDemoOption && (
+                  <div className="mt-4 p-3 rounded-2xl bg-[#eff6ff] border border-[#bfdbfe] text-center animate-in fade-in">
+                    <p className="text-[11px] text-[#1e40af] mb-2 font-medium">
+                      Facebook OAuth is not enabled in Firebase Console. You can continue with demo mode:
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        updateUserProfile({
+                          displayName: 'Facebook Verified User',
+                          email: 'verified.fb.user@ingreguide.com',
+                        });
+                        setActiveTab('onboarding');
+                      }}
+                      className="px-4 py-1.5 rounded-full bg-[#1877F2] hover:bg-[#166fe5] text-white text-xs font-bold shadow-xs cursor-pointer"
+                    >
+                      Continue with Simulated Facebook Account
+                    </button>
+                  </div>
+                )}
+
+                {/* Guest Scan Link & Profiling Preview */}
+                <div className="mt-5 text-center flex flex-col gap-2">
                   <button
                     type="button"
                     onClick={enterGuestMode}
-                    className="text-xs text-[#5379EE] hover:underline inline-flex items-center gap-1 font-semibold"
+                    className="text-xs text-[#5379EE] hover:underline inline-flex items-center justify-center gap-1 font-semibold"
                   >
                     <span className="material-symbols-outlined text-sm">qr_code_scanner</span>
                     <span>Continue to Scanner as Guest</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('onboarding')}
+                    className="text-xs text-[#64748b] hover:text-[#5379EE] inline-flex items-center justify-center gap-1 font-medium transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-sm">tune</span>
+                    <span>Launch User Profiling Wizard</span>
                   </button>
                 </div>
               </div>
@@ -378,7 +554,7 @@ export const AuthScreen: React.FC = () => {
 
             {/* Medical Guardrail & RA 10173 Data Privacy Notice */}
             <div className="w-full mt-4 bg-[#f8fafc] border border-slate-200/70 p-3.5 rounded-2xl flex items-start gap-2.5">
-              <span className="material-symbols-outlined text-[#65a30d] text-lg shrink-0 mt-0.5">
+              <span className="material-symbols-outlined text-[#5379EE] text-lg shrink-0 mt-0.5">
                 verified_user
               </span>
               <div className="text-xs text-[#64748b] leading-tight space-y-1">
@@ -397,7 +573,7 @@ export const AuthScreen: React.FC = () => {
         <div className="mt-16 pt-8 border-t border-slate-200/60">
           <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
             <div>
-              <span className="font-mono-tech text-xs text-[#65a30d] font-bold uppercase tracking-wider">
+              <span className="font-mono-tech text-xs text-[#5379EE] font-bold uppercase tracking-wider">
                 Engine Architecture
               </span>
               <h2 className="text-2xl font-bold text-[#0f172a] mt-1">Medical Clarity at the Point of Consumption</h2>
@@ -415,7 +591,7 @@ export const AuthScreen: React.FC = () => {
                   <span className="font-mono-tech text-[10px] text-[#64748b] uppercase tracking-wider">
                     Sample Product Verdict
                   </span>
-                  <span className="bg-[#ecfccb] text-[#65a30d] font-mono-tech text-xs px-2.5 py-0.5 rounded-full font-bold">
+                  <span className="bg-[#EEF2FF] text-[#2563EB] font-mono-tech text-xs px-2.5 py-0.5 rounded-full font-bold">
                     Grade A (94/100)
                   </span>
                 </div>
@@ -438,7 +614,7 @@ export const AuthScreen: React.FC = () => {
               </div>
               <div
                 onClick={() => setActiveTab('product-analysis')}
-                className="mt-4 flex items-center gap-1 font-mono-tech text-xs font-bold text-[#65a30d] hover:underline cursor-pointer"
+                className="mt-4 flex items-center gap-1 font-mono-tech text-xs font-bold text-[#5379EE] hover:underline cursor-pointer"
               >
                 <span>View Full Clinical Report</span>
                 <span className="material-symbols-outlined text-sm">arrow_forward</span>
@@ -452,7 +628,7 @@ export const AuthScreen: React.FC = () => {
                   <span className="font-mono-tech text-[10px] text-[#64748b] uppercase tracking-wider">
                     Allergen Shield Sensitivity
                   </span>
-                  <span className="material-symbols-outlined text-[#65a30d] text-lg">donut_large</span>
+                  <span className="material-symbols-outlined text-[#5379EE] text-lg">donut_large</span>
                 </div>
                 <h3 className="text-base font-bold text-[#0f172a]">FALCPA 9 &amp; EU 14 Profiles</h3>
                 {/* SVG Sensitivity Ring */}
@@ -464,7 +640,7 @@ export const AuthScreen: React.FC = () => {
                       cy="50"
                       fill="transparent"
                       r="40"
-                      stroke="#84cc16"
+                      stroke="#5379EE"
                       strokeDasharray="251.2"
                       strokeDashoffset="70.3"
                       strokeLinecap="round"
@@ -495,8 +671,8 @@ export const AuthScreen: React.FC = () => {
                   </svg>
                 </div>
                 <div className="grid grid-cols-3 gap-2 text-center">
-                  <div className="bg-[#ecfccb] p-2 rounded-xl">
-                    <p className="font-mono-tech text-[10px] text-[#65a30d] font-bold">Safe</p>
+                  <div className="bg-[#EEF2FF] p-2 rounded-xl">
+                    <p className="font-mono-tech text-[10px] text-[#2563EB] font-bold">Safe</p>
                     <p className="font-extrabold text-sm text-[#0f172a]">88%</p>
                   </div>
                   <div className="bg-[#fffbeb] p-2 rounded-xl">
@@ -527,10 +703,10 @@ export const AuthScreen: React.FC = () => {
                 <div className="space-y-2 pt-1">
                   <div className="flex items-center justify-between p-2 rounded-xl bg-[#f8fafc]">
                     <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-[#84cc16]"></span>
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#5379EE]"></span>
                       <span className="font-mono-tech text-xs text-[#0f172a]">E300 (Ascorbic Acid)</span>
                     </div>
-                    <span className="font-mono-tech text-[10px] text-[#65a30d] font-bold">Natural C</span>
+                    <span className="font-mono-tech text-[10px] text-[#5379EE] font-bold">Natural C</span>
                   </div>
                   <div className="flex items-center justify-between p-2 rounded-xl bg-[#f8fafc]">
                     <div className="flex items-center gap-2">
@@ -553,7 +729,7 @@ export const AuthScreen: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setActiveTab('ingredient-clarity')}
-                  className="font-mono-tech text-xs font-bold text-[#65a30d] hover:underline"
+                  className="font-mono-tech text-xs font-bold text-[#5379EE] hover:underline"
                 >
                   Explore Index
                 </button>

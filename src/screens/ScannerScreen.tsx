@@ -169,7 +169,7 @@ export const ScannerScreen: React.FC = () => {
             <div className="bg-[#0f172a] rounded-3xl overflow-hidden shadow-xl border border-slate-800 flex flex-col relative">
               {/* Top Bar Overlay */}
               <div className="bg-[#0f172a]/85 backdrop-blur-md px-4 py-2.5 flex items-center justify-between z-20 border-b border-white/5">
-                <div className="flex items-center gap-2 text-[#f7fee7] font-mono-tech text-xs">
+                <div className="flex items-center gap-2 text-[#f1f5f9] font-mono-tech text-xs">
                   <span className="material-symbols-outlined text-[#38bdf8] text-sm animate-pulse">videocam</span>
                   <span>Sensor Lens (1080p, 60fps)</span>
                 </div>
@@ -224,14 +224,14 @@ export const ScannerScreen: React.FC = () => {
 
                   {/* Target Acquired Tag */}
                   <div className="absolute bottom-2 right-2 bg-[#0f172a]/90 backdrop-blur-md px-2 py-0.5 rounded-md flex items-center gap-1.5 shadow-md">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#84cc16] animate-ping"></span>
-                    <span className="font-mono-tech text-[10px] text-[#f7fee7] uppercase font-bold">Target Acquired</span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#38bdf8] animate-ping"></span>
+                    <span className="font-mono-tech text-[10px] text-[#e0f2fe] uppercase font-bold">Target Acquired</span>
                   </div>
                 </div>
 
                 {/* Floating Hint Toast */}
                 <div className="absolute top-4 bg-white/90 backdrop-blur-md text-[#0f172a] px-3.5 py-1 rounded-full shadow-md text-xs font-medium flex items-center gap-1.5 pointer-events-none">
-                  <span className="material-symbols-outlined text-[#65a30d] text-sm">lightbulb</span>
+                  <span className="material-symbols-outlined text-[#5379EE] text-sm">lightbulb</span>
                   <span>{toastHint}</span>
                 </div>
               </div>
@@ -277,7 +277,7 @@ export const ScannerScreen: React.FC = () => {
                   <button
                     onClick={() => setTorchOn(!torchOn)}
                     className={`h-9 px-3 rounded-full font-mono-tech text-xs font-bold flex items-center gap-1 transition-all ${
-                      torchOn ? 'bg-[#84cc16] text-[#0f172a]' : 'bg-[#f1f5f9] text-[#64748b] hover:text-[#0f172a]'
+                      torchOn ? 'bg-[#5379EE] text-white' : 'bg-[#f1f5f9] text-[#64748b] hover:text-[#0f172a]'
                     }`}
                   >
                     <span className="material-symbols-outlined text-base">flash_on</span>
@@ -286,7 +286,7 @@ export const ScannerScreen: React.FC = () => {
 
                   <button
                     onClick={() => handleScanProduct(products[0])}
-                    className="h-9 w-9 rounded-full bg-[#84cc16] hover:bg-[#65a30d] text-[#0f172a] hover:text-white flex items-center justify-center shadow-md active:scale-95 transition-all"
+                    className="h-9 w-9 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white flex items-center justify-center shadow-md active:scale-95 transition-all"
                     title="Capture Frame"
                   >
                     <span className="material-symbols-outlined text-lg">camera</span>
@@ -298,16 +298,16 @@ export const ScannerScreen: React.FC = () => {
             {/* Drag & Drop Upload Zone */}
             <div
               onClick={() => fileInputRef.current?.click()}
-              className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-100 shadow-xs hover:border-[#84cc16] transition-all cursor-pointer group"
+              className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-100 shadow-xs hover:border-[#5379EE] transition-all cursor-pointer group"
             >
               <div className="flex flex-col sm:flex-row items-center gap-5">
-                <div className="w-14 h-14 rounded-2xl bg-[#ecfccb] flex items-center justify-center text-[#65a30d] shrink-0 group-hover:scale-105 transition-transform">
+                <div className="w-14 h-14 rounded-2xl bg-[#EEF2FF] flex items-center justify-center text-[#5379EE] shrink-0 group-hover:scale-105 transition-transform">
                   <span className="material-symbols-outlined text-3xl">cloud_upload</span>
                 </div>
                 <div className="flex-1 text-center sm:text-left">
                   <div className="flex items-center justify-center sm:justify-start gap-2">
                     <h3 className="font-bold text-sm text-[#0f172a]">Upload Packaging Imagery</h3>
-                    <span className="px-2 py-0.5 rounded-full bg-[#ecfccb] text-[#65a30d] font-mono-tech text-[10px] font-bold">
+                    <span className="px-2 py-0.5 rounded-full bg-[#EEF2FF] text-[#2563EB] font-mono-tech text-[10px] font-bold">
                       OCR + EAN
                     </span>
                   </div>
@@ -318,7 +318,7 @@ export const ScannerScreen: React.FC = () => {
                 </div>
                 <button
                   type="button"
-                  className="h-10 px-5 rounded-full bg-[#84cc16] hover:bg-[#65a30d] text-[#0f172a] hover:text-white font-mono-tech text-xs font-bold flex items-center justify-center gap-1.5 transition-all shrink-0"
+                  className="h-10 px-5 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white font-mono-tech text-xs font-bold flex items-center justify-center gap-1.5 transition-all shrink-0"
                 >
                   <span className="material-symbols-outlined text-base">folder_open</span>
                   <span>Browse Files</span>
@@ -334,11 +334,11 @@ export const ScannerScreen: React.FC = () => {
 
               <div className="mt-4 pt-3 border-t border-slate-50 flex flex-wrap items-center justify-between text-[#64748b] text-[11px] gap-2">
                 <span className="flex items-center gap-1">
-                  <span className="material-symbols-outlined text-xs text-[#65a30d]">check_circle</span>
+                  <span className="material-symbols-outlined text-xs text-[#5379EE]">check_circle</span>
                   Auto-deskews curved cans &amp; pouches
                 </span>
                 <span className="flex items-center gap-1">
-                  <span className="material-symbols-outlined text-xs text-[#65a30d]">check_circle</span>
+                  <span className="material-symbols-outlined text-xs text-[#5379EE]">check_circle</span>
                   High dynamic range shadow rejection
                 </span>
               </div>
@@ -393,11 +393,11 @@ export const ScannerScreen: React.FC = () => {
                     onChange={(e) => setManualCode(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleManualSearch()}
                     placeholder="Enter 12-digit UPC or 13-digit EAN"
-                    className="w-full h-11 pl-10 pr-24 rounded-full bg-[#f8fafc] border border-[#e2e8f0] text-xs text-[#0f172a] outline-none focus:bg-white focus:ring-2 focus:ring-[#84cc16]/20 focus:border-[#84cc16] transition-all"
+                    className="w-full h-11 pl-10 pr-24 rounded-full bg-[#f8fafc] border border-[#e2e8f0] text-xs text-[#0f172a] outline-none focus:bg-white focus:ring-2 focus:ring-[#5379EE]/20 focus:border-[#5379EE] transition-all"
                   />
                   <button
                     onClick={() => handleManualSearch()}
-                    className="absolute right-1.5 h-8 px-4 rounded-full bg-[#84cc16] hover:bg-[#65a30d] text-[#0f172a] hover:text-white font-mono-tech text-xs font-bold transition-all"
+                    className="absolute right-1.5 h-8 px-4 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white font-mono-tech text-xs font-bold transition-all"
                   >
                     Search
                   </button>
@@ -413,33 +413,43 @@ export const ScannerScreen: React.FC = () => {
                 <div className="flex flex-wrap gap-1.5">
                   <button
                     onClick={() => {
-                      setManualCode('041570054321');
-                      handleManualSearch('041570054321');
+                      setManualCode('016000275270');
+                      handleManualSearch('016000275270');
                     }}
-                    className="px-2.5 py-1 rounded-full bg-[#f8fafc] hover:bg-[#ecfccb] text-[#0f172a] text-[11px] font-medium border border-slate-200/60 transition-colors flex items-center gap-1"
+                    className="px-2.5 py-1 rounded-full bg-[#f8fafc] hover:bg-[#EEF2FF] text-[#0f172a] text-[11px] font-medium border border-slate-200/60 transition-colors flex items-center gap-1 cursor-pointer"
                   >
-                    <span className="material-symbols-outlined text-xs text-[#65a30d]">history</span>
-                    <span>041570054321 (Rolled Oats)</span>
+                    <span className="material-symbols-outlined text-xs text-[#5379EE]">history</span>
+                    <span>016000275270 (Granola Bar)</span>
                   </button>
                   <button
                     onClick={() => {
-                      setManualCode('850012349081');
-                      handleManualSearch('850012349081');
+                      setManualCode('894700010045');
+                      handleManualSearch('894700010045');
                     }}
-                    className="px-2.5 py-1 rounded-full bg-[#f8fafc] hover:bg-[#ecfccb] text-[#0f172a] text-[11px] font-medium border border-slate-200/60 transition-colors flex items-center gap-1"
+                    className="px-2.5 py-1 rounded-full bg-[#f8fafc] hover:bg-[#EEF2FF] text-[#0f172a] text-[11px] font-medium border border-slate-200/60 transition-colors flex items-center gap-1 cursor-pointer"
                   >
-                    <span className="material-symbols-outlined text-xs text-[#65a30d]">history</span>
-                    <span>850012349081 (Greek Yogurt)</span>
+                    <span className="material-symbols-outlined text-xs text-[#5379EE]">history</span>
+                    <span>894700010045 (Chobani Greek)</span>
                   </button>
                   <button
                     onClick={() => {
-                      setManualCode('730040012940');
-                      handleManualSearch('730040012940');
+                      setManualCode('051500255162');
+                      handleManualSearch('051500255162');
                     }}
-                    className="px-2.5 py-1 rounded-full bg-[#f8fafc] hover:bg-[#ecfccb] text-[#0f172a] text-[11px] font-medium border border-slate-200/60 transition-colors flex items-center gap-1"
+                    className="px-2.5 py-1 rounded-full bg-[#f8fafc] hover:bg-[#EEF2FF] text-[#0f172a] text-[11px] font-medium border border-slate-200/60 transition-colors flex items-center gap-1 cursor-pointer"
                   >
-                    <span className="material-symbols-outlined text-xs text-[#65a30d]">history</span>
-                    <span>730040012940 (Seed Crackers)</span>
+                    <span className="material-symbols-outlined text-xs text-[#5379EE]">history</span>
+                    <span>051500255162 (Jif Peanut Butter)</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setManualCode('049000028904');
+                      handleManualSearch('049000028904');
+                    }}
+                    className="px-2.5 py-1 rounded-full bg-[#f8fafc] hover:bg-[#EEF2FF] text-[#0f172a] text-[11px] font-medium border border-slate-200/60 transition-colors flex items-center gap-1 cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-xs text-[#5379EE]">history</span>
+                    <span>049000028904 (Coca-Cola)</span>
                   </button>
                 </div>
               </div>
@@ -450,7 +460,7 @@ export const ScannerScreen: React.FC = () => {
                   <span className="font-mono-tech text-[10px] text-[#0f172a] uppercase font-bold tracking-wider">
                     Simulator Test Suite
                   </span>
-                  <span className="font-mono-tech text-[10px] text-[#65a30d]">Click to Inject</span>
+                  <span className="font-mono-tech text-[10px] text-[#5379EE]">Click to Inject</span>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <button
@@ -466,11 +476,11 @@ export const ScannerScreen: React.FC = () => {
 
                   <button
                     onClick={() => handleScanProduct(products[7] || products[1])}
-                    className="p-2.5 rounded-xl bg-white hover:bg-[#ecfccb] border border-slate-200/60 text-left transition-colors flex flex-col"
+                    className="p-2.5 rounded-xl bg-white hover:bg-[#EEF2FF] border border-slate-200/60 text-left transition-colors flex flex-col"
                   >
                     <div className="flex items-center justify-between w-full">
-                      <span className="font-mono-tech text-xs font-bold text-[#65a30d]">Pure Matcha</span>
-                      <span className="material-symbols-outlined text-[#65a30d] text-sm">check_circle</span>
+                      <span className="font-mono-tech text-xs font-bold text-[#2563EB]">Pure Matcha</span>
+                      <span className="material-symbols-outlined text-[#5379EE] text-sm">check_circle</span>
                     </div>
                     <span className="text-[10px] text-[#64748b] mt-0.5">100% Allergen Safe</span>
                   </button>
@@ -521,7 +531,7 @@ export const ScannerScreen: React.FC = () => {
                             ? 'bg-[#ffdad6] text-[#e11d48]'
                             : log.verdict === 'WARNING'
                             ? 'bg-[#fef3c7] text-[#d97706]'
-                            : 'bg-[#ecfccb] text-[#65a30d]'
+                            : 'bg-[#EEF2FF] text-[#2563EB]'
                         }`}
                       >
                         <span className="material-symbols-outlined text-sm">
@@ -541,7 +551,7 @@ export const ScannerScreen: React.FC = () => {
                           ? 'bg-[#e11d48] text-white'
                           : log.verdict === 'WARNING'
                           ? 'bg-[#d97706] text-white'
-                          : 'bg-[#ecfccb] text-[#65a30d]'
+                          : 'bg-[#EEF2FF] text-[#2563EB]'
                       }`}
                     >
                       {log.verdict}
@@ -552,10 +562,10 @@ export const ScannerScreen: React.FC = () => {
 
               <div className="pt-2 flex items-center justify-between text-[11px] text-[#64748b]">
                 <span className="flex items-center gap-1">
-                  <span className="material-symbols-outlined text-sm text-[#65a30d]">sync</span>
+                  <span className="material-symbols-outlined text-sm text-[#5379EE]">sync</span>
                   <span>Syncing to Dietary History</span>
                 </span>
-                <span className="text-[#65a30d] font-bold">Cloud Encrypted</span>
+                <span className="text-[#5379EE] font-bold">Cloud Encrypted</span>
               </div>
             </div>
           </div>
@@ -572,7 +582,7 @@ export const ScannerScreen: React.FC = () => {
                   className={`w-9 h-9 rounded-full flex items-center justify-center ${
                     detectionModalProduct.allergensDetected.length > 0
                       ? 'bg-[#fff1f2] text-[#e11d48]'
-                      : 'bg-[#ecfccb] text-[#65a30d]'
+                      : 'bg-[#EEF2FF] text-[#2563EB]'
                   }`}
                 >
                   <span className="material-symbols-outlined text-lg">
@@ -598,7 +608,7 @@ export const ScannerScreen: React.FC = () => {
               className={`p-3.5 rounded-2xl flex items-center gap-3 ${
                 detectionModalProduct.allergensDetected.length > 0
                   ? 'bg-[#fff1f2] text-[#e11d48]'
-                  : 'bg-[#ecfccb] text-[#65a30d]'
+                  : 'bg-[#EEF2FF] text-[#2563EB]'
               }`}
             >
               <span className="material-symbols-outlined text-2xl">
@@ -625,7 +635,7 @@ export const ScannerScreen: React.FC = () => {
               </div>
               <div className="flex justify-between">
                 <span>Nutri-Score Rating:</span>
-                <span className="font-mono-tech font-bold text-[#65a30d]">Grade {detectionModalProduct.nutriScore}</span>
+                <span className="font-mono-tech font-bold text-[#2563EB]">Grade {detectionModalProduct.nutriScore}</span>
               </div>
               <div className="flex justify-between">
                 <span>Processing Scale:</span>
@@ -640,7 +650,7 @@ export const ScannerScreen: React.FC = () => {
                   setActiveTab('product-analysis');
                   setDetectionModalProduct(null);
                 }}
-                className="flex-1 h-11 rounded-full bg-[#84cc16] hover:bg-[#65a30d] text-[#0f172a] hover:text-white font-mono-tech text-xs font-bold transition-all flex items-center justify-center gap-1 shadow-sm"
+                className="flex-1 h-11 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white font-mono-tech text-xs font-bold transition-all flex items-center justify-center gap-1 shadow-sm"
               >
                 <span>Open Ingredient Deep-Dive</span>
                 <span className="material-symbols-outlined text-sm">arrow_forward</span>

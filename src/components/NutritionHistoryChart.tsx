@@ -184,10 +184,10 @@ export const NutritionHistoryChart: React.FC = () => {
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-5">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="w-8 h-8 rounded-xl bg-[#ecfccb] text-[#65a30d] flex items-center justify-center">
+            <span className="w-8 h-8 rounded-xl bg-[#EEF2FF] text-[#5379EE] flex items-center justify-center">
               <span className="material-symbols-outlined text-lg">stacked_line_chart</span>
             </span>
-            <span className="font-mono-tech text-[10px] text-[#65a30d] font-bold uppercase tracking-wider">
+            <span className="font-mono-tech text-[10px] text-[#5379EE] font-bold uppercase tracking-wider">
               Nutritional Intake Intelligence
             </span>
           </div>
@@ -263,7 +263,7 @@ export const NutritionHistoryChart: React.FC = () => {
           {/* Action Buttons */}
           <button
             onClick={() => setIsLogModalOpen(true)}
-            className="inline-flex items-center gap-1.5 bg-[#84cc16] hover:bg-[#65a30d] text-[#0f172a] hover:text-white px-3.5 py-1.5 rounded-xl font-mono-tech text-xs font-bold transition-all shadow-xs active:scale-95"
+            className="inline-flex items-center gap-1.5 bg-[#5379EE] hover:bg-[#4368DD] text-white px-3.5 py-1.5 rounded-xl font-mono-tech text-xs font-bold transition-all shadow-xs active:scale-95"
           >
             <span className="material-symbols-outlined text-sm">add</span>
             <span>Log Meal</span>
@@ -312,7 +312,7 @@ export const NutritionHistoryChart: React.FC = () => {
             <span className="text-xs font-bold text-[#64748b]">g / day</span>
             <span
               className={`ml-auto font-mono-tech text-xs font-bold ${
-                stats.avgSugar <= WHO_RECOMMENDED_SUGAR_LIMIT ? 'text-[#65a30d]' : 'text-[#e11d48]'
+                stats.avgSugar <= WHO_RECOMMENDED_SUGAR_LIMIT ? 'text-[#2563EB]' : 'text-[#e11d48]'
               }`}
             >
               {stats.sugarThresholdPct}% Limit
@@ -348,7 +348,7 @@ export const NutritionHistoryChart: React.FC = () => {
             <span className="text-xs font-bold text-[#64748b]">mg / day</span>
             <span
               className={`ml-auto font-mono-tech text-xs font-bold ${
-                stats.avgSodium <= FDA_MAX_SODIUM_LIMIT ? 'text-[#65a30d]' : 'text-[#e11d48]'
+                stats.avgSodium <= FDA_MAX_SODIUM_LIMIT ? 'text-[#2563EB]' : 'text-[#e11d48]'
               }`}
             >
               {stats.sodiumThresholdPct}% Max
@@ -535,9 +535,9 @@ export const NutritionHistoryChart: React.FC = () => {
                           </div>
                         )}
                         {activeMetrics.protein && (
-                          <div className="flex items-center justify-between text-[#4d7c0f]">
+                          <div className="flex items-center justify-between text-[#2563EB]">
                             <span className="flex items-center gap-1.5">
-                              <span className="w-2 h-2 rounded-full bg-[#84cc16]"></span>
+                              <span className="w-2 h-2 rounded-full bg-[#5379EE]"></span>
                               Protein:
                             </span>
                             <span className="font-bold">{data.protein} g</span>
@@ -564,7 +564,7 @@ export const NutritionHistoryChart: React.FC = () => {
                           </div>
                         </div>
                       )}
-                      <p className="text-[9px] text-[#65a30d] font-mono-tech text-center pt-1">
+                      <p className="text-[9px] text-[#5379EE] font-mono-tech text-center pt-1">
                         Click data point to inspect breakdown
                       </p>
                     </div>
@@ -698,7 +698,7 @@ export const NutritionHistoryChart: React.FC = () => {
         <div className="bg-[#f8fafc] rounded-2xl p-4 sm:p-5 border border-slate-200 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-[#65a30d]">event_note</span>
+              <span className="material-symbols-outlined text-[#5379EE]">event_note</span>
               <h4 className="text-sm font-bold text-[#0f172a]">
                 Intake Detail for {selectedDayDetail.displayDate} ({selectedDayDetail.date})
               </h4>
@@ -730,7 +730,7 @@ export const NutritionHistoryChart: React.FC = () => {
             </div>
             <div className="bg-white p-3 rounded-xl border border-slate-100">
               <span className="text-[10px] text-[#64748b] font-mono-tech uppercase">Protein Target</span>
-              <span className="text-base font-bold text-[#4d7c0f] block">{selectedDayDetail.protein} g</span>
+              <span className="text-base font-bold text-[#2563EB] block">{selectedDayDetail.protein} g</span>
               <span className="text-[10px] text-[#64748b]">
                 {Math.round((selectedDayDetail.protein / RECOMMENDED_PROTEIN_TARGET) * 100)}% of goal
               </span>
@@ -738,7 +738,7 @@ export const NutritionHistoryChart: React.FC = () => {
             <div className="bg-white p-3 rounded-xl border border-slate-100">
               <span className="text-[10px] text-[#64748b] font-mono-tech uppercase">Total Energy</span>
               <span className="text-base font-bold text-[#0f172a] block">{selectedDayDetail.calories} kcal</span>
-              <span className="text-[10px] text-[#65a30d]">Verified pure scans</span>
+              <span className="text-[10px] text-[#5379EE]">Verified pure scans</span>
             </div>
           </div>
 
@@ -755,7 +755,7 @@ export const NutritionHistoryChart: React.FC = () => {
                     <div className="text-right font-mono-tech text-[10px]">
                       <span className="text-[#b45309] block">{item.sugar}g sugar</span>
                       <span className="text-[#0284c7] block">{item.sodium}mg Na</span>
-                      <span className="text-[#4d7c0f] block">{item.protein}g protein</span>
+                      <span className="text-[#2563EB] block">{item.protein}g protein</span>
                     </div>
                   </div>
                 ))}
@@ -771,7 +771,7 @@ export const NutritionHistoryChart: React.FC = () => {
           <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-lg w-full border border-slate-100 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
-                <span className="w-8 h-8 rounded-xl bg-[#ecfccb] text-[#65a30d] flex items-center justify-center">
+                <span className="w-8 h-8 rounded-xl bg-[#EEF2FF] text-[#5379EE] flex items-center justify-center">
                   <span className="material-symbols-outlined text-lg">restaurant</span>
                 </span>
                 <div>
@@ -798,7 +798,7 @@ export const NutritionHistoryChart: React.FC = () => {
                     key={p.id}
                     type="button"
                     onClick={() => handleSelectCatalogItem(p.id)}
-                    className="shrink-0 px-2.5 py-1.5 rounded-xl border border-slate-200 hover:border-[#84cc16] hover:bg-[#f7fee7] text-left transition-colors"
+                    className="shrink-0 px-2.5 py-1.5 rounded-xl border border-slate-200 hover:border-[#5379EE] hover:bg-[#EEF2FF] text-left transition-colors"
                   >
                     <span className="text-[11px] font-bold text-[#0f172a] block truncate max-w-[120px]">{p.name}</span>
                     <span className="text-[9px] text-[#64748b] font-mono-tech">
@@ -819,7 +819,7 @@ export const NutritionHistoryChart: React.FC = () => {
                   placeholder="e.g., Avocado Toast with Hemp Hearts"
                   value={logForm.name}
                   onChange={(e) => setLogForm((prev) => ({ ...prev, name: e.target.value }))}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-[#84cc16] focus:outline-hidden text-sm"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-[#5379EE] focus:outline-hidden text-sm"
                 />
               </div>
 
@@ -849,14 +849,14 @@ export const NutritionHistoryChart: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-[#4d7c0f] block mb-1">Protein (grams)</label>
+                  <label className="text-xs font-bold text-[#2563EB] block mb-1">Protein (grams)</label>
                   <input
                     type="number"
                     step="0.1"
                     min="0"
                     value={logForm.protein}
                     onChange={(e) => setLogForm((prev) => ({ ...prev, protein: parseFloat(e.target.value) || 0 }))}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:border-[#84cc16] focus:outline-hidden text-sm font-mono-tech"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:border-[#5379EE] focus:outline-hidden text-sm font-mono-tech"
                   />
                 </div>
               </div>
@@ -871,7 +871,7 @@ export const NutritionHistoryChart: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-[#84cc16] hover:bg-[#65a30d] text-[#0f172a] hover:text-white text-xs font-mono-tech font-bold transition-all shadow-sm active:scale-95"
+                  className="px-5 py-2 rounded-xl bg-[#5379EE] hover:bg-[#4368DD] text-white text-xs font-mono-tech font-bold transition-all shadow-sm active:scale-95"
                 >
                   Commit Intake to Today
                 </button>

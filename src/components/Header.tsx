@@ -219,6 +219,16 @@ export const Header: React.FC = () => {
                 <div className="pt-1">
                   <button
                     onClick={() => {
+                      setActiveTab('onboarding');
+                      setShowUserMenu(false);
+                    }}
+                    className="w-full text-left px-3 py-2 text-xs font-medium text-[#1e293b] hover:bg-[#eef2ff] rounded-xl flex items-center gap-2"
+                  >
+                    <span className="material-symbols-outlined text-sm text-[#5379EE]">tune</span>
+                    Personalize Shield (Onboarding)
+                  </button>
+                  <button
+                    onClick={() => {
                       setActiveTab('allergen-radar');
                       setShowUserMenu(false);
                     }}

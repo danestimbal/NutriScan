@@ -12,6 +12,7 @@ import { ProductAnalysisScreen } from './screens/ProductAnalysisScreen';
 import { IngredientClarityScreen } from './screens/IngredientClarityScreen';
 import { AllergenRadarScreen } from './screens/AllergenRadarScreen';
 import { AdminScreen } from './screens/AdminScreen';
+import { OnboardingProfileScreen } from './screens/OnboardingProfileScreen';
 
 const MainContent: React.FC = () => {
   const { activeTab, setActiveTab } = useApp();
@@ -24,6 +25,7 @@ const MainContent: React.FC = () => {
 
       <main className="flex-1 w-full">
         {activeTab === 'auth' && <AuthScreen />}
+        {activeTab === 'onboarding' && <OnboardingProfileScreen />}
         {activeTab === 'dashboard' && <DashboardScreen />}
         {activeTab === 'scanner' && <ScannerScreen />}
         {activeTab === 'product-analysis' && <ProductAnalysisScreen />}
@@ -36,7 +38,7 @@ const MainContent: React.FC = () => {
       <footer className="w-full bg-[#f0f3ff] border-t border-[#dae2fd]/60 py-6 mb-16 lg:mb-0">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3">
-            <span className="font-extrabold text-base text-[#65a30d]">IngreGuide</span>
+            <span className="font-extrabold text-base text-[#5379EE]">IngreGuide</span>
             <span className="text-xs text-[#64748b]">
               • &quot;Read with Sight, Choose What's Right&quot; | Science Investigatory Project (2026–2027) • RA 10173 &amp; WCAG 2.2
             </span>
@@ -57,7 +59,7 @@ const MainContent: React.FC = () => {
             </button>
             <button
               onClick={() => setActiveTab('admin')}
-              className="hover:text-[#0f172a] transition-colors font-bold text-[#65a30d]"
+              className="hover:text-[#0f172a] transition-colors font-bold text-[#5379EE]"
             >
               Admin Console
             </button>

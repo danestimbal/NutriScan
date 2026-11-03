@@ -1,9 +1,23 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { FoodProduct, UserAllergenProfile, ScanLog, AdditivePolicy } from '../types';
 import { initialUserProfile, seedProducts, initialScanLogs, initialAdditivePolicies } from '../data/seedData';
-import { auth, db, loginWithGoogle, logoutUser, sanitizePayload, handleFirestoreError, OperationType } from '../firebase';
-import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
+import {
+  auth,
+  db,
+  loginWithGoogle,
+  loginWithFacebook,
+  loginWithEmail,
+  registerWithEmail,
+  resetPassword,
+  loginAnonymouslyUser,
+  logoutUser,
+  sanitizePayload,
+  handleFirestoreError,
+  OperationType,
+} from '../firebase';
+import { doc, getDoc, setDoc, onSnapshot, collection } from 'firebase/firestore';
 import { sensoryEngine } from '../utils/soundEffects';
+import { seedDatabaseIfEmpty } from '../utils/firestoreSeeder';
 
 export type NavigationTab =
   | 'dashboard'
@@ -12,7 +26,8 @@ export type NavigationTab =
   | 'product-analysis'
   | 'ingredient-clarity'
   | 'admin'
-  | 'auth';
+  | 'auth'
+  | 'onboarding';
 
 interface AppContextType {
   activeTab: NavigationTab;
@@ -31,13 +46,19 @@ interface AppContextType {
   clearScanLogs: () => void;
   additivePolicies: AdditivePolicy[];
   toggleAdditivePolicy: (eCode: string) => void;
-  addNewProduct: (product: FoodProduct) => void;
-  updateProduct: (product: FoodProduct) => void;
+  addNewProduct: (product: FoodProduct) => Promise<void>;
+  updateProduct: (product: FoodProduct) => Promise<void>;
+  reseedDatabase: () => Promise<void>;
+  isSeeding: boolean;
   isLoggedIn: boolean;
   currentUserEmail: string | null;
   handleGoogleLogin: () => Promise<void>;
+  handleFacebookLogin: () => Promise<void>;
+  handleEmailLogin: (email: string, pass: string) => Promise<void>;
+  handleEmailRegister: (email: string, pass: string, fullName: string) => Promise<void>;
+  handlePasswordReset: (email: string) => Promise<void>;
   handleLogout: () => Promise<void>;
-  enterGuestMode: () => void;
+  enterGuestMode: () => Promise<void>;
   hazardAlertProduct: FoodProduct | null;
   setHazardAlertProduct: (prod: FoodProduct | null) => void;
   triggerScanCheck: (product: FoodProduct) => void;
@@ -64,20 +85,93 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(true);
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(initialUserProfile.email);
   const [hazardAlertProduct, setHazardAlertProduct] = useState<FoodProduct | null>(null);
+  const [isSeeding, setIsSeeding] = useState<boolean>(false);
 
-  // Sync auth state
+  // Initial seed check & real-time sync with Firestore database collections
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
+    // 1. Seed database with 52 food products if not already seeded
+    seedDatabaseIfEmpty().catch((err) => {
+      console.warn('Initial seed verification notice:', err);
+    });
+
+    // 2. Real-time Firestore snapshot for products catalog
+    const productsColl = collection(db, 'products');
+    const unsubscribeProducts = onSnapshot(
+      productsColl,
+      (snapshot) => {
+        if (!snapshot.empty) {
+          const loadedProducts = snapshot.docs.map((docSnap) => docSnap.data() as FoodProduct);
+          setProducts(loadedProducts);
+          localStorage.setItem('ingreguide_products_cache', JSON.stringify(loadedProducts));
+        }
+      },
+      (error) => {
+        console.warn('Firestore products snapshot listener:', error);
+      }
+    );
+
+    // 3. Real-time Firestore snapshot for additive policies
+    const policiesColl = collection(db, 'additivePolicies');
+    const unsubscribePolicies = onSnapshot(
+      policiesColl,
+      (snapshot) => {
+        if (!snapshot.empty) {
+          const loadedPolicies = snapshot.docs.map((docSnap) => docSnap.data() as AdditivePolicy);
+          setAdditivePolicies(loadedPolicies);
+          localStorage.setItem('ingreguide_policies', JSON.stringify(loadedPolicies));
+        }
+      },
+      (error) => {
+        console.warn('Firestore policies snapshot listener:', error);
+      }
+    );
+
+    return () => {
+      unsubscribeProducts();
+      unsubscribePolicies();
+    };
+  }, []);
+
+  // Sync auth state & hydrate profile from Firestore
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
         setIsLoggedIn(true);
         setCurrentUserEmail(user.email);
-        setUserProfile((prev) => ({
-          ...prev,
-          uid: user.uid,
-          displayName: user.displayName || prev.displayName,
-          email: user.email || prev.email,
-          photoURL: user.photoURL || prev.photoURL,
-        }));
+        try {
+          const userRef = doc(db, 'users', user.uid);
+          const snap = await getDoc(userRef);
+          if (snap.exists()) {
+            const data = snap.data() as Partial<UserAllergenProfile>;
+            setUserProfile((prev) => {
+              const merged = { ...prev, ...data, uid: user.uid, email: user.email || prev.email };
+              localStorage.setItem('ingreguide_profile', JSON.stringify(merged));
+              return merged;
+            });
+          } else {
+            setUserProfile((prev) => {
+              const updated = {
+                ...prev,
+                uid: user.uid,
+                displayName: user.displayName || prev.displayName,
+                email: user.email || prev.email,
+                photoURL: user.photoURL || prev.photoURL,
+              };
+              localStorage.setItem('ingreguide_profile', JSON.stringify(updated));
+              setDoc(userRef, sanitizePayload(updated), { merge: true }).catch(() => {});
+              return updated;
+            });
+          }
+        } catch {
+          // Fallback to local profile
+          setUserProfile((prev) => ({
+            ...prev,
+            uid: user.uid,
+            displayName: user.displayName || prev.displayName,
+            email: user.email || prev.email,
+            photoURL: user.photoURL || prev.photoURL,
+          }));
+        }
       }
     });
     return () => unsubscribe();
@@ -150,22 +244,53 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.removeItem('nutriscan_scanlogs');
   };
 
-  const toggleAdditivePolicy = (eCode: string) => {
+  const toggleAdditivePolicy = async (eCode: string) => {
     const updated = additivePolicies.map((p) =>
       p.eCode === eCode ? { ...p, isEnforced: !p.isEnforced } : p
     );
     setAdditivePolicies(updated);
     localStorage.setItem('ingreguide_policies', JSON.stringify(updated));
+
+    const target = updated.find((p) => p.eCode === eCode);
+    if (target) {
+      try {
+        await setDoc(doc(db, 'additivePolicies', eCode), sanitizePayload(target), { merge: true });
+      } catch (err) {
+        handleFirestoreError(err, OperationType.UPDATE, `additivePolicies/${eCode}`);
+      }
+    }
   };
 
-  const addNewProduct = (product: FoodProduct) => {
+  const addNewProduct = async (product: FoodProduct) => {
     const updated = [product, ...products];
     setProducts(updated);
+    try {
+      await setDoc(doc(db, 'products', product.id), sanitizePayload(product), { merge: true });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.CREATE, `products/${product.id}`);
+    }
   };
 
-  const updateProduct = (product: FoodProduct) => {
+  const updateProduct = async (product: FoodProduct) => {
     const updated = products.map((p) => (p.id === product.id ? product : p));
     setProducts(updated);
+    try {
+      await setDoc(doc(db, 'products', product.id), sanitizePayload(product), { merge: true });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `products/${product.id}`);
+    }
+  };
+
+  const reseedDatabaseAction = async () => {
+    setIsSeeding(true);
+    try {
+      await seedDatabaseIfEmpty(true);
+    } catch (err) {
+      console.error('Manual reseed failed:', err);
+      throw err;
+    } finally {
+      setIsSeeding(false);
+    }
   };
 
   const handleGoogleLoginAction = async () => {
@@ -174,17 +299,73 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (user) {
         setIsLoggedIn(true);
         setCurrentUserEmail(user.email);
-        updateUserProfile({
-          uid: user.uid,
-          displayName: user.displayName || 'Allergy Warrior',
-          email: user.email || '',
-          photoURL: user.photoURL || undefined,
-        });
-        setActiveTab('dashboard');
+        const userRef = doc(db, 'users', user.uid);
+        const snap = await getDoc(userRef);
+        if (!snap.exists() || !snap.data()?.profileCompleted) {
+          setActiveTab('onboarding');
+        } else {
+          setActiveTab('dashboard');
+        }
       }
-    } catch (e) {
+    } catch (e: any) {
       console.warn('Google login popup cancelled or blocked:', e);
+      throw e;
     }
+  };
+
+  const handleFacebookLoginAction = async () => {
+    try {
+      const user = await loginWithFacebook();
+      if (user) {
+        setIsLoggedIn(true);
+        setCurrentUserEmail(user.email);
+        const userRef = doc(db, 'users', user.uid);
+        const snap = await getDoc(userRef);
+        if (!snap.exists() || !snap.data()?.profileCompleted) {
+          setActiveTab('onboarding');
+        } else {
+          setActiveTab('dashboard');
+        }
+      }
+    } catch (e: any) {
+      console.warn('Facebook login error:', e);
+      throw e;
+    }
+  };
+
+  const handleEmailLoginAction = async (email: string, pass: string) => {
+    const user = await loginWithEmail(email, pass);
+    if (user) {
+      setIsLoggedIn(true);
+      setCurrentUserEmail(user.email);
+      const userRef = doc(db, 'users', user.uid);
+      const snap = await getDoc(userRef);
+      if (snap.exists() && snap.data()?.profileCompleted) {
+        setActiveTab('dashboard');
+      } else {
+        setActiveTab('onboarding');
+      }
+    }
+  };
+
+  const handleEmailRegisterAction = async (email: string, pass: string, fullName: string) => {
+    const user = await registerWithEmail(email, pass, fullName);
+    if (user) {
+      setIsLoggedIn(true);
+      setCurrentUserEmail(user.email);
+      const updatedProfile = {
+        uid: user.uid,
+        displayName: fullName || 'Allergy Warrior',
+        email: user.email || email,
+        profileCompleted: false,
+      };
+      await updateUserProfile(updatedProfile);
+      setActiveTab('onboarding');
+    }
+  };
+
+  const handlePasswordResetAction = async (email: string) => {
+    await resetPassword(email);
   };
 
   const handleLogoutAction = async () => {
@@ -194,7 +375,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setActiveTab('auth');
   };
 
-  const enterGuestMode = () => {
+  const enterGuestMode = async () => {
+    try {
+      await loginAnonymouslyUser();
+    } catch {
+      // In case anonymous auth is restricted, continue with local guest profile
+    }
     setIsLoggedIn(true);
     setCurrentUserEmail('guest@ingreguide.ph');
     setActiveTab('dashboard');
@@ -266,9 +452,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         toggleAdditivePolicy,
         addNewProduct,
         updateProduct,
+        reseedDatabase: reseedDatabaseAction,
+        isSeeding,
         isLoggedIn,
         currentUserEmail,
         handleGoogleLogin: handleGoogleLoginAction,
+        handleFacebookLogin: handleFacebookLoginAction,
+        handleEmailLogin: handleEmailLoginAction,
+        handleEmailRegister: handleEmailRegisterAction,
+        handlePasswordReset: handlePasswordResetAction,
         handleLogout: handleLogoutAction,
         enterGuestMode,
         hazardAlertProduct,

@@ -20,7 +20,7 @@ export const IngredientClarityScreen: React.FC = () => {
       {/* Toast Notification */}
       {toastMsg && (
         <div className="fixed bottom-20 sm:bottom-6 right-6 z-50 p-3.5 bg-[#0f172a] text-white rounded-2xl shadow-xl flex items-center gap-2 text-xs font-semibold animate-in slide-in-from-bottom-2">
-          <span className="material-symbols-outlined text-[#84cc16] text-base">check_circle</span>
+          <span className="material-symbols-outlined text-[#5379EE] text-base">check_circle</span>
           <span>{toastMsg}</span>
         </div>
       )}
@@ -28,27 +28,27 @@ export const IngredientClarityScreen: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         {/* Breadcrumb Row */}
         <div className="flex items-center gap-2 font-mono-tech text-xs text-[#64748b]">
-          <button onClick={() => setActiveTab('dashboard')} className="hover:text-[#65a30d]">
+          <button onClick={() => setActiveTab('dashboard')} className="hover:text-[#5379EE]">
             Products
           </button>
           <span>&gt;</span>
-          <span className="hover:text-[#65a30d]">{prod.brand}</span>
+          <span className="hover:text-[#5379EE]">{prod.brand}</span>
           <span>&gt;</span>
           <span className="text-[#0f172a] font-semibold truncate max-w-[200px]">{prod.name}</span>
           <span>&gt;</span>
-          <span className="bg-[#ecfccb] text-[#65a30d] px-2.5 py-0.5 rounded-full font-bold">Decoded Clarity</span>
+          <span className="bg-[#EEF2FF] text-[#5379EE] px-2.5 py-0.5 rounded-full font-bold">Decoded Clarity</span>
         </div>
 
         {/* Product Bar & Mode Switch */}
         <div className="w-full bg-white rounded-3xl p-6 border border-slate-100 shadow-xs flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-[#f7fee7] overflow-hidden shrink-0 border border-[#d9f99d] shadow-xs">
+            <div className="w-16 h-16 rounded-2xl bg-[#EEF2FF] overflow-hidden shrink-0 border border-[#dae2fd] shadow-xs">
               <img src={prod.image} alt={prod.name} className="w-full h-full object-cover" />
             </div>
             <div className="flex flex-col">
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-xl sm:text-2xl font-extrabold text-[#0f172a]">{prod.name}</h1>
-                <span className="bg-[#ecfccb] text-[#65a30d] font-mono-tech text-[10px] px-2.5 py-1 rounded-full uppercase font-bold">
+                <span className="bg-[#EEF2FF] text-[#5379EE] font-mono-tech text-[10px] px-2.5 py-1 rounded-full uppercase font-bold">
                   Clean Botanical
                 </span>
               </div>
@@ -74,7 +74,7 @@ export const IngredientClarityScreen: React.FC = () => {
               onClick={() => setClarityMode('decoded')}
               className={`px-4 py-1.5 rounded-full font-mono-tech text-xs transition-all flex items-center gap-1.5 ${
                 clarityMode === 'decoded'
-                  ? 'bg-[#84cc16] text-[#0f172a] shadow-xs font-bold'
+                  ? 'bg-[#5379EE] text-white shadow-xs font-bold'
                   : 'text-[#64748b] hover:text-[#0f172a]'
               }`}
             >
@@ -93,7 +93,7 @@ export const IngredientClarityScreen: React.FC = () => {
                 <span className="font-mono-tech text-[10px] text-[#64748b] uppercase font-bold">Processing Scale</span>
                 <h3 className="text-base font-bold text-[#0f172a] mt-1">NOVA {prod.novaGroup} • Processed</h3>
               </div>
-              <div className="w-10 h-10 rounded-full bg-[#ecfccb] flex items-center justify-center text-[#65a30d]">
+              <div className="w-10 h-10 rounded-full bg-[#EEF2FF] flex items-center justify-center text-[#5379EE]">
                 <span className="material-symbols-outlined text-xl">kitchen</span>
               </div>
             </div>
@@ -104,12 +104,12 @@ export const IngredientClarityScreen: React.FC = () => {
             <div className="mt-4">
               <div className="flex justify-between font-mono-tech text-[10px] text-[#64748b] mb-1">
                 <span>NOVA 1 (Raw)</span>
-                <span className="font-bold text-[#65a30d]">Tier {prod.novaGroup} (Moderate)</span>
+                <span className="font-bold text-[#5379EE]">Tier {prod.novaGroup} (Moderate)</span>
                 <span>NOVA 4 (Ultra)</span>
               </div>
               <div className="w-full h-2 rounded-full bg-slate-100 flex overflow-hidden">
-                <div className="h-full bg-[#84cc16] w-1/4"></div>
-                <div className="h-full bg-[#a3e635] w-1/4"></div>
+                <div className="h-full bg-[#5379EE] w-1/4"></div>
+                <div className="h-full bg-[#818CF8] w-1/4"></div>
                 <div className="h-full bg-[#d97706] w-1/4"></div>
                 <div className="h-full bg-slate-200 w-1/4"></div>
               </div>
@@ -126,11 +126,11 @@ export const IngredientClarityScreen: React.FC = () => {
                   <span className="font-mono-tech text-xs text-[#64748b]">/ 100</span>
                 </div>
               </div>
-              <div className="w-10 h-10 rounded-full bg-[#f7fee7] flex items-center justify-center text-[#65a30d]">
+              <div className="w-10 h-10 rounded-full bg-[#EEF2FF] flex items-center justify-center text-[#5379EE]">
                 <span className="material-symbols-outlined text-xl">verified</span>
               </div>
             </div>
-            <div className="space-y-1 mt-2 text-xs text-[#65a30d] font-medium">
+            <div className="space-y-1 mt-2 text-xs text-[#5379EE] font-medium">
               <div className="flex items-center gap-1.5">
                 <span className="material-symbols-outlined text-sm">check_circle</span>
                 <span>0 synthetic coal-tar colorants</span>
@@ -168,7 +168,7 @@ export const IngredientClarityScreen: React.FC = () => {
                   <span className="material-symbols-outlined text-xs">priority_high</span> {a}
                 </span>
               ))}
-              <span className="bg-[#ecfccb] text-[#65a30d] px-2.5 py-0.5 rounded-full font-mono-tech text-[10px] font-bold flex items-center gap-1">
+              <span className="bg-[#EEF2FF] text-[#5379EE] px-2.5 py-0.5 rounded-full font-mono-tech text-[10px] font-bold flex items-center gap-1">
                 <span className="material-symbols-outlined text-xs">check</span> Dairy Free
               </span>
             </div>
@@ -183,7 +183,7 @@ export const IngredientClarityScreen: React.FC = () => {
             <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-xs space-y-4">
               <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-[#ecfccb] flex items-center justify-center text-[#65a30d]">
+                  <div className="w-8 h-8 rounded-xl bg-[#EEF2FF] flex items-center justify-center text-[#5379EE]">
                     <span className="material-symbols-outlined text-base">biotech</span>
                   </div>
                   <div>
@@ -206,24 +206,24 @@ export const IngredientClarityScreen: React.FC = () => {
                   prod.additivesDecoded.map((additive, i) => (
                     <div
                       key={i}
-                      className="bg-[#f8fafc] rounded-2xl p-4 border border-slate-100 space-y-2 hover:bg-[#f7fee7]/40 transition-colors"
+                      className="bg-[#f8fafc] rounded-2xl p-4 border border-slate-100 space-y-2 hover:bg-[#EEF2FF]/40 transition-colors"
                     >
                       <div className="flex items-start justify-between flex-wrap gap-2">
                         <div className="flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full bg-[#84cc16]"></span>
+                          <span className="w-2.5 h-2.5 rounded-full bg-[#5379EE]"></span>
                           <span className="font-bold text-xs text-[#0f172a]">{additive.name}</span>
                           <span className="font-mono-tech text-[10px] text-[#64748b] bg-slate-200/60 px-1.5 py-0.5 rounded">
                             {additive.eCode}
                           </span>
                         </div>
-                        <span className="bg-[#ecfccb] text-[#65a30d] font-mono-tech text-[10px] px-2.5 py-0.5 rounded-full flex items-center gap-1 font-bold">
+                        <span className="bg-[#EEF2FF] text-[#5379EE] font-mono-tech text-[10px] px-2.5 py-0.5 rounded-full flex items-center gap-1 font-bold">
                           <span className="material-symbols-outlined text-xs">eco</span>
                           <span>{additive.badge}</span>
                         </span>
                       </div>
 
                       <div className="bg-white p-3 rounded-xl border border-slate-100/80">
-                        <span className="font-mono-tech text-[10px] text-[#65a30d] uppercase font-bold tracking-wide block">
+                        <span className="font-mono-tech text-[10px] text-[#5379EE] uppercase font-bold tracking-wide block">
                           Plain English Translation
                         </span>
                         <p className="text-xs text-[#1e293b] mt-0.5 leading-relaxed">{additive.translation}</p>
@@ -231,7 +231,7 @@ export const IngredientClarityScreen: React.FC = () => {
 
                       <div className="flex items-center justify-between font-mono-tech text-[11px] text-[#64748b] pt-1">
                         <span>Scientific role: {additive.scientificRole}</span>
-                        <span className="text-[#65a30d] font-semibold">{additive.toxicityRisk}</span>
+                        <span className="text-[#5379EE] font-semibold">{additive.toxicityRisk}</span>
                       </div>
                     </div>
                   ))
@@ -299,7 +299,7 @@ export const IngredientClarityScreen: React.FC = () => {
                   <span className="text-[#d97706] font-bold">{prod.sugarsBreakdown.glycemicLabel}</span>
                 </div>
                 <div className="w-full h-2.5 rounded-full bg-slate-200 flex overflow-hidden">
-                  <div className="h-full bg-[#65a30d]" style={{ width: '35%' }}></div>
+                  <div className="h-full bg-[#5379EE]" style={{ width: '35%' }}></div>
                   <div className="h-full bg-[#d97706]" style={{ width: '25%' }}></div>
                   <div className="h-full bg-slate-200" style={{ width: '40%' }}></div>
                 </div>
@@ -315,7 +315,7 @@ export const IngredientClarityScreen: React.FC = () => {
             {/* Whole Foods & Staples */}
             <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-xs space-y-4">
               <div className="flex items-center gap-2.5 pb-2 border-b border-slate-100">
-                <div className="w-8 h-8 rounded-xl bg-[#ecfccb] flex items-center justify-center text-[#65a30d]">
+                <div className="w-8 h-8 rounded-xl bg-[#EEF2FF] flex items-center justify-center text-[#5379EE]">
                   <span className="material-symbols-outlined text-base">spa</span>
                 </div>
                 <div>
@@ -328,7 +328,7 @@ export const IngredientClarityScreen: React.FC = () => {
 
               <div className="space-y-2.5">
                 <div className="flex items-center gap-3 p-2.5 rounded-2xl bg-[#f8fafc] border border-slate-100">
-                  <div className="w-12 h-12 rounded-xl bg-[#f7fee7] overflow-hidden shrink-0">
+                  <div className="w-12 h-12 rounded-xl bg-[#EEF2FF] overflow-hidden shrink-0">
                     <img
                       src="https://images.unsplash.com/photo-1589367920969-ab8e050bbb04?w=200&auto=format&fit=crop&q=80"
                       alt="Whole Grain Rolled Oats"
@@ -344,7 +344,7 @@ export const IngredientClarityScreen: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-3 p-2.5 rounded-2xl bg-[#f8fafc] border border-slate-100">
-                  <div className="w-12 h-12 rounded-xl bg-[#f7fee7] overflow-hidden shrink-0">
+                  <div className="w-12 h-12 rounded-xl bg-[#EEF2FF] overflow-hidden shrink-0">
                     <img
                       src="https://images.unsplash.com/photo-1509440159596-0249088772ff?w=200&auto=format&fit=crop&q=80"
                       alt="Roasted Almond Bits"
@@ -360,7 +360,7 @@ export const IngredientClarityScreen: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-3 p-2.5 rounded-2xl bg-[#f8fafc] border border-slate-100">
-                  <div className="w-12 h-12 rounded-xl bg-[#f7fee7] overflow-hidden shrink-0">
+                  <div className="w-12 h-12 rounded-xl bg-[#EEF2FF] overflow-hidden shrink-0">
                     <img
                       src="https://images.unsplash.com/photo-1589733955941-5eeaf752f6dd?w=200&auto=format&fit=crop&q=80"
                       alt="Wildflower Honey"
@@ -401,8 +401,8 @@ export const IngredientClarityScreen: React.FC = () => {
                 onClick={handleSave}
                 className={`w-full h-12 rounded-full font-mono-tech text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm ${
                   savedToCollection
-                    ? 'bg-[#ecfccb] text-[#65a30d]'
-                    : 'bg-[#84cc16] hover:bg-[#65a30d] text-[#0f172a] hover:text-white'
+                    ? 'bg-[#EEF2FF] text-[#5379EE]'
+                    : 'bg-[#5379EE] hover:bg-[#4368DD] text-white'
                 }`}
               >
                 <span className="material-symbols-outlined text-base">
@@ -414,7 +414,7 @@ export const IngredientClarityScreen: React.FC = () => {
               <div className="grid grid-cols-2 gap-2.5">
                 <button
                   onClick={() => alert('PDF clinical summary generated for download.')}
-                  className="h-10 rounded-full bg-[#ecfccb] hover:bg-[#d9f99d] text-[#65a30d] font-mono-tech text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+                  className="h-10 rounded-full bg-[#EEF2FF] hover:bg-[#E0E7FF] text-[#5379EE] font-mono-tech text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
                 >
                   <span className="material-symbols-outlined text-sm">picture_as_pdf</span>
                   <span>Export PDF</span>

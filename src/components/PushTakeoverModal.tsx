@@ -60,7 +60,7 @@ export const PushTakeoverModal: React.FC = () => {
 
           {/* Recommended Safe Swap Teaser */}
           {hazardAlertProduct.safeAlternative && (
-            <div className="p-3.5 rounded-2xl bg-[#f7fee7] border border-[#d9f99d] flex items-center justify-between gap-3">
+            <div className="p-3.5 rounded-2xl bg-[#EEF2FF] border border-[#C7D2FE] flex items-center justify-between gap-3">
               <div className="flex items-center gap-2.5 min-w-0">
                 <img
                   src={hazardAlertProduct.safeAlternative.image}
@@ -68,7 +68,7 @@ export const PushTakeoverModal: React.FC = () => {
                   className="w-10 h-10 rounded-lg object-cover bg-white shrink-0"
                 />
                 <div className="min-w-0">
-                  <span className="text-[10px] font-bold text-[#65a30d] uppercase block">Safe Swap Ready</span>
+                  <span className="text-[10px] font-bold text-[#5379EE] uppercase block">Safe Swap Ready</span>
                   <p className="text-xs font-bold text-[#0f172a] truncate">
                     {hazardAlertProduct.safeAlternative.name}
                   </p>
@@ -80,7 +80,7 @@ export const PushTakeoverModal: React.FC = () => {
                   setActiveTab('product-analysis');
                   setHazardAlertProduct(null);
                 }}
-                className="px-3 py-1.5 rounded-full bg-[#84cc16] hover:bg-[#65a30d] text-[#0f172a] hover:text-white font-mono-tech text-[11px] font-bold transition-all shrink-0"
+                className="px-3 py-1.5 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white font-mono-tech text-[11px] font-bold transition-all shrink-0"
               >
                 Switch
               </button>

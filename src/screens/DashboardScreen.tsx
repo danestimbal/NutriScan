@@ -26,10 +26,10 @@ export const DashboardScreen: React.FC = () => {
     if (selectedCategory === 'all') return true;
     const catLower = prod.category.toLowerCase();
     if (selectedCategory === 'drinks') return catLower.includes('drink') || catLower.includes('beverage');
-    if (selectedCategory === 'snacks') return catLower.includes('snack') || catLower.includes('bar') || catLower.includes('chip');
-    if (selectedCategory === 'dairy') return catLower.includes('dairy') || catLower.includes('milk');
-    if (selectedCategory === 'bakery') return catLower.includes('bakery') || catLower.includes('bread');
-    if (selectedCategory === 'pantry') return catLower.includes('pantry') || catLower.includes('sauce');
+    if (selectedCategory === 'snacks') return catLower.includes('snack') || catLower.includes('bar') || catLower.includes('chip') || catLower.includes('confectionery') || catLower.includes('treat');
+    if (selectedCategory === 'dairy') return catLower.includes('dairy') || catLower.includes('milk') || catLower.includes('cheese') || catLower.includes('yogurt') || catLower.includes('butter');
+    if (selectedCategory === 'bakery') return catLower.includes('bakery') || catLower.includes('bread') || catLower.includes('muffin') || catLower.includes('tortilla');
+    if (selectedCategory === 'pantry') return catLower.includes('pantry') || catLower.includes('sauce') || catLower.includes('grain') || catLower.includes('rice') || catLower.includes('pasta') || catLower.includes('condiment') || catLower.includes('spread') || catLower.includes('cereal') || catLower.includes('oat');
     return true;
   });
 
@@ -55,13 +55,20 @@ export const DashboardScreen: React.FC = () => {
               Peanuts, Gluten, Dairy, and Added Emulsifiers are actively monitored across all your scans.
             </p>
           </div>
-          <div className="flex items-center gap-3 z-10">
+          <div className="flex items-center gap-2 sm:gap-3 z-10 flex-wrap">
+            <button
+              onClick={() => setActiveTab('onboarding')}
+              className="inline-flex items-center gap-1.5 bg-[#eef2ff] hover:bg-[#e0e7ff] text-[#5379EE] px-4 py-2 rounded-full font-mono-tech text-xs font-bold transition-all border border-[#dbe4fe]"
+            >
+              <span className="material-symbols-outlined text-base">tune</span>
+              <span>Profile Wizard</span>
+            </button>
             <button
               onClick={() => setActiveTab('allergen-radar')}
               className="inline-flex items-center gap-1.5 bg-[#eef2ff] hover:bg-[#e0e7ff] text-[#5379EE] px-4 py-2 rounded-full font-mono-tech text-xs font-bold transition-all border border-[#dbe4fe]"
             >
-              <span className="material-symbols-outlined text-base">tune</span>
-              <span>Edit Tiers</span>
+              <span className="material-symbols-outlined text-base">radar</span>
+              <span>Allergen Radar</span>
             </button>
             <button
               onClick={() => setActiveTab('scanner')}
@@ -452,7 +459,7 @@ export const DashboardScreen: React.FC = () => {
                 onClick={() => setActiveFilter('all')}
                 className={`px-3 py-1 rounded-full font-mono-tech text-xs font-bold transition-all ${
                   activeFilter === 'all'
-                    ? 'bg-[#ecfccb] text-[#65a30d]'
+                    ? 'bg-[#5379EE] text-white shadow-xs'
                     : 'bg-white text-[#64748b] hover:text-[#0f172a] border border-slate-100'
                 }`}
               >
@@ -462,7 +469,7 @@ export const DashboardScreen: React.FC = () => {
                 onClick={() => setActiveFilter('safe')}
                 className={`px-3 py-1 rounded-full font-mono-tech text-xs font-bold transition-all ${
                   activeFilter === 'safe'
-                    ? 'bg-[#ecfccb] text-[#65a30d]'
+                    ? 'bg-[#5379EE] text-white shadow-xs'
                     : 'bg-white text-[#64748b] hover:text-[#0f172a] border border-slate-100'
                 }`}
               >
@@ -472,7 +479,7 @@ export const DashboardScreen: React.FC = () => {
                 onClick={() => setActiveFilter('warnings')}
                 className={`px-3 py-1 rounded-full font-mono-tech text-xs font-bold transition-all ${
                   activeFilter === 'warnings'
-                    ? 'bg-[#ecfccb] text-[#65a30d]'
+                    ? 'bg-[#5379EE] text-white shadow-xs'
                     : 'bg-white text-[#64748b] hover:text-[#0f172a] border border-slate-100'
                 }`}
               >

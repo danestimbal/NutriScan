@@ -21,7 +21,7 @@ export const ProductAnalysisScreen: React.FC = () => {
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-20 sm:bottom-6 left-4 right-4 sm:left-auto sm:right-6 z-50 p-3.5 bg-[#0f172a] text-white rounded-2xl shadow-xl flex items-center gap-2 text-xs font-semibold animate-in slide-in-from-bottom-2">
-          <span className="material-symbols-outlined text-[#84cc16] text-base">check_circle</span>
+          <span className="material-symbols-outlined text-[#5379EE] text-base">check_circle</span>
           <span>{toastMessage}</span>
         </div>
       )}
@@ -86,11 +86,11 @@ export const ProductAnalysisScreen: React.FC = () => {
             <span>&gt;</span>
             <span className="hover:text-[#0f172a]">{prod.brand}</span>
             <span>&gt;</span>
-            <span className="text-[#65a30d] font-bold truncate max-w-[200px]">{prod.name}</span>
+            <span className="text-[#5379EE] font-bold truncate max-w-[200px]">{prod.name}</span>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="flex h-2 w-2 rounded-full bg-[#84cc16]"></span>
+            <span className="flex h-2 w-2 rounded-full bg-[#5379EE]"></span>
             <span className="font-mono-tech text-[10px] uppercase text-[#64748b]">
               Database Synchronized: Today, 09:42 EST
             </span>
@@ -105,7 +105,7 @@ export const ProductAnalysisScreen: React.FC = () => {
               <div className="relative rounded-2xl bg-slate-50 overflow-hidden aspect-[4/3] flex items-center justify-center border border-slate-100 shadow-inner">
                 <img src={prod.image} alt={prod.name} className="w-full h-full object-cover" />
                 <div className="absolute bottom-2.5 left-2.5 bg-[#0f172a]/80 backdrop-blur-md text-white font-mono-tech text-[10px] uppercase px-2.5 py-1 rounded-full flex items-center gap-1">
-                  <span className="material-symbols-outlined text-xs text-[#a3e635]">verified</span>
+                  <span className="material-symbols-outlined text-xs text-[#5379EE]">verified</span>
                   <span>Lab Verified Pack</span>
                 </div>
                 <div className="absolute top-2.5 right-2.5 bg-white/90 backdrop-blur-md px-2 py-0.5 rounded-full text-[#0f172a] font-mono-tech text-[10px] font-bold">
@@ -115,17 +115,17 @@ export const ProductAnalysisScreen: React.FC = () => {
 
               <div className="flex items-center justify-between px-1 font-mono-tech text-xs text-[#64748b]">
                 <span className="flex items-center gap-1">
-                  <span className="material-symbols-outlined text-sm text-[#65a30d]">barcode_scanner</span>
+                  <span className="material-symbols-outlined text-sm text-[#5379EE]">barcode_scanner</span>
                   <span>UPC {prod.barcode}</span>
                 </span>
-                <span className="text-[#65a30d] font-bold">100% Label Parsed</span>
+                <span className="text-[#5379EE] font-bold">100% Label Parsed</span>
               </div>
             </div>
 
             {/* Center: Title & Nomenclature */}
             <div className="lg:col-span-5 flex flex-col justify-between h-full space-y-4">
               <div className="space-y-1">
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#ecfccb] text-[#65a30d] font-mono-tech text-[10px] font-bold uppercase">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#EEF2FF] text-[#5379EE] font-mono-tech text-[10px] font-bold uppercase">
                   <span className="material-symbols-outlined text-xs">eco</span>
                   <span>Verified Botanical Manufacturer</span>
                 </div>
@@ -139,11 +139,11 @@ export const ProductAnalysisScreen: React.FC = () => {
               {/* Rapid Attributes */}
               <div className="flex flex-wrap gap-2 pt-1">
                 <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-[#f8fafc] text-xs font-semibold text-[#1e293b] border border-slate-200/60">
-                  <span className="material-symbols-outlined text-xs text-[#65a30d]">check_circle</span>
+                  <span className="material-symbols-outlined text-xs text-[#5379EE]">check_circle</span>
                   <span>Non-GMO Project</span>
                 </span>
                 <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-[#f8fafc] text-xs font-semibold text-[#1e293b] border border-slate-200/60">
-                  <span className="material-symbols-outlined text-xs text-[#65a30d]">check_circle</span>
+                  <span className="material-symbols-outlined text-xs text-[#5379EE]">check_circle</span>
                   <span>100% Whole Grain</span>
                 </span>
                 {hasAllergens && (
@@ -158,7 +158,7 @@ export const ProductAnalysisScreen: React.FC = () => {
               <div className="flex items-center gap-2.5 pt-2">
                 <button
                   onClick={() => setActiveTab('ingredient-clarity')}
-                  className="h-10 px-5 rounded-full bg-[#84cc16] hover:bg-[#65a30d] text-[#0f172a] hover:text-white font-mono-tech text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm active:scale-95"
+                  className="h-10 px-5 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white font-mono-tech text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm active:scale-95"
                 >
                   <span className="material-symbols-outlined text-base">auto_awesome</span>
                   <span>Decode Plain English</span>
@@ -169,7 +169,7 @@ export const ProductAnalysisScreen: React.FC = () => {
                     showToast(isSaved ? 'Removed from favorites' : 'Saved to your favorites list!');
                   }}
                   className={`h-10 px-4 rounded-full font-mono-tech text-xs font-bold transition-colors flex items-center gap-1.5 ${
-                    isSaved ? 'bg-[#ecfccb] text-[#65a30d]' : 'bg-[#f1f5f9] text-[#0f172a] hover:bg-slate-200'
+                    isSaved ? 'bg-[#EEF2FF] text-[#5379EE]' : 'bg-[#f1f5f9] text-[#0f172a] hover:bg-slate-200'
                   }`}
                 >
                   <span className="material-symbols-outlined text-base">{isSaved ? 'bookmark_added' : 'bookmark'}</span>
@@ -228,9 +228,9 @@ export const ProductAnalysisScreen: React.FC = () => {
                   <div
                     className={`my-1 inline-flex items-center justify-center w-9 h-9 rounded-full font-mono-tech text-base font-extrabold shadow-sm ${
                       prod.nutriScore === 'A'
-                        ? 'bg-[#ecfccb] text-[#65a30d]'
+                        ? 'bg-[#EEF2FF] text-[#5379EE]'
                         : prod.nutriScore === 'B'
-                        ? 'bg-[#84cc16] text-[#0f172a]'
+                        ? 'bg-[#5379EE] text-white'
                         : 'bg-[#ffdad6] text-[#e11d48]'
                     }`}
                   >
@@ -262,7 +262,7 @@ export const ProductAnalysisScreen: React.FC = () => {
             <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-xs space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[#65a30d] text-base">receipt_long</span>
+                  <span className="material-symbols-outlined text-[#5379EE] text-base">receipt_long</span>
                   <h2 className="text-sm font-bold text-[#0f172a]">Verbatim Label Copy</h2>
                 </div>
                 <span className="font-mono-tech text-[10px] text-[#64748b] bg-slate-100 px-2 py-0.5 rounded">
@@ -288,16 +288,16 @@ export const ProductAnalysisScreen: React.FC = () => {
             </div>
 
             {/* Nutrient Summary Callout */}
-            <div className="bg-[#f7fee7] rounded-3xl p-6 border border-[#d9f99d] space-y-3">
+            <div className="bg-[#EEF2FF] rounded-3xl p-6 border border-[#c7d2fe] space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-bold text-[#0f172a]">Macronutrient Profile ({prod.netWeight})</h3>
-                <span className="font-mono-tech text-xs text-[#65a30d] font-bold">{prod.nutrients.calories} Calories</span>
+                <span className="font-mono-tech text-xs text-[#5379EE] font-bold">{prod.nutrients.calories} Calories</span>
               </div>
               <div className="grid grid-cols-4 gap-2 text-center">
                 <div className="bg-white rounded-xl p-2.5 border border-slate-100 shadow-xs">
                   <span className="font-mono-tech text-[10px] text-[#64748b] uppercase block">Carbs</span>
                   <span className="text-sm font-bold text-[#0f172a] block">{prod.nutrients.carbs}</span>
-                  <span className="text-[10px] text-[#65a30d]">{prod.nutrients.fiber} Fiber</span>
+                  <span className="text-[10px] text-[#5379EE]">{prod.nutrients.fiber} Fiber</span>
                 </div>
                 <div className="bg-white rounded-xl p-2.5 border border-slate-100 shadow-xs">
                   <span className="font-mono-tech text-[10px] text-[#64748b] uppercase block">Sugars</span>
@@ -307,7 +307,7 @@ export const ProductAnalysisScreen: React.FC = () => {
                 <div className="bg-white rounded-xl p-2.5 border border-slate-100 shadow-xs">
                   <span className="font-mono-tech text-[10px] text-[#64748b] uppercase block">Protein</span>
                   <span className="text-sm font-bold text-[#0f172a] block">{prod.nutrients.protein}</span>
-                  <span className="text-[10px] text-[#65a30d]">Plant-based</span>
+                  <span className="text-[10px] text-[#5379EE]">Plant-based</span>
                 </div>
                 <div className="bg-white rounded-xl p-2.5 border border-slate-100 shadow-xs">
                   <span className="font-mono-tech text-[10px] text-[#64748b] uppercase block">Fat</span>
@@ -326,7 +326,7 @@ export const ProductAnalysisScreen: React.FC = () => {
                 onClick={() => setActiveAnalysisTab('ingredients')}
                 className={`flex-1 py-2 px-3 rounded-xl font-mono-tech text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
                   activeTab === 'ingredients'
-                    ? 'bg-[#ecfccb] text-[#65a30d] shadow-xs'
+                    ? 'bg-[#EEF2FF] text-[#5379EE] shadow-xs'
                     : 'text-[#64748b] hover:text-[#0f172a]'
                 }`}
               >
@@ -337,7 +337,7 @@ export const ProductAnalysisScreen: React.FC = () => {
                 onClick={() => setActiveAnalysisTab('nutrition')}
                 className={`flex-1 py-2 px-3 rounded-xl font-mono-tech text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
                   activeTab === 'nutrition'
-                    ? 'bg-[#ecfccb] text-[#65a30d] shadow-xs'
+                    ? 'bg-[#EEF2FF] text-[#5379EE] shadow-xs'
                     : 'text-[#64748b] hover:text-[#0f172a]'
                 }`}
               >
@@ -348,7 +348,7 @@ export const ProductAnalysisScreen: React.FC = () => {
                 onClick={() => setActiveAnalysisTab('certifications')}
                 className={`flex-1 py-2 px-3 rounded-xl font-mono-tech text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
                   activeTab === 'certifications'
-                    ? 'bg-[#ecfccb] text-[#65a30d] shadow-xs'
+                    ? 'bg-[#EEF2FF] text-[#5379EE] shadow-xs'
                     : 'text-[#64748b] hover:text-[#0f172a]'
                 }`}
               >
@@ -378,7 +378,7 @@ export const ProductAnalysisScreen: React.FC = () => {
                             ? 'bg-[#e11d48] animate-ping'
                             : item.status === 'Moderate'
                             ? 'bg-[#d97706]'
-                            : 'bg-[#84cc16]'
+                            : 'bg-[#5379EE]'
                         }`}
                       ></span>
                       <div className="space-y-0.5 min-w-0">
@@ -397,7 +397,7 @@ export const ProductAnalysisScreen: React.FC = () => {
                                   ? 'bg-[#e11d48] text-white'
                                   : item.status === 'Moderate'
                                   ? 'bg-[#fef3c7] text-[#b45309]'
-                                  : 'bg-[#ecfccb] text-[#65a30d]'
+                                  : 'bg-[#EEF2FF] text-[#5379EE]'
                               }`}
                             >
                               {item.category}
@@ -427,14 +427,14 @@ export const ProductAnalysisScreen: React.FC = () => {
                   </div>
                   <div className="text-right">
                     <span className="font-mono-tech text-[10px] text-[#64748b] uppercase">Calories</span>
-                    <div className="text-sm font-bold text-[#65a30d]">{prod.nutrients.calories} kcal</div>
+                    <div className="text-sm font-bold text-[#5379EE]">{prod.nutrients.calories} kcal</div>
                   </div>
                 </div>
 
                 <div className="space-y-3 text-xs">
                   <div className="flex justify-between items-center py-1 border-b border-slate-50">
                     <span className="font-bold text-[#0f172a]">Total Fat {prod.nutrients.totalFat}</span>
-                    <span className="font-mono-tech font-bold text-[#65a30d]">{prod.nutrients.totalFatDV}</span>
+                    <span className="font-mono-tech font-bold text-[#5379EE]">{prod.nutrients.totalFatDV}</span>
                   </div>
                   <div className="flex justify-between items-center py-1 pl-4 border-b border-slate-50 text-[#64748b]">
                     <span>Saturated Fat {prod.nutrients.satFat}</span>
@@ -442,11 +442,11 @@ export const ProductAnalysisScreen: React.FC = () => {
                   </div>
                   <div className="flex justify-between items-center py-1 border-b border-slate-50">
                     <span className="font-bold text-[#0f172a]">Sodium {prod.nutrients.sodium}</span>
-                    <span className="font-mono-tech font-bold text-[#65a30d]">{prod.nutrients.sodiumDV}</span>
+                    <span className="font-mono-tech font-bold text-[#5379EE]">{prod.nutrients.sodiumDV}</span>
                   </div>
                   <div className="flex justify-between items-center py-1 border-b border-slate-50">
                     <span className="font-bold text-[#0f172a]">Total Carbohydrate {prod.nutrients.carbs}</span>
-                    <span className="font-mono-tech font-bold text-[#65a30d]">{prod.nutrients.carbsDV}</span>
+                    <span className="font-mono-tech font-bold text-[#5379EE]">{prod.nutrients.carbsDV}</span>
                   </div>
                   <div className="flex justify-between items-center py-1 pl-4 border-b border-slate-50 text-[#64748b]">
                     <span>Dietary Fiber {prod.nutrients.fiber}</span>
@@ -458,7 +458,7 @@ export const ProductAnalysisScreen: React.FC = () => {
                   </div>
                   <div className="flex justify-between items-center py-1 border-b border-slate-50">
                     <span className="font-bold text-[#0f172a]">Protein {prod.nutrients.protein}</span>
-                    <span className="font-mono-tech font-bold text-[#65a30d]">{prod.nutrients.proteinDV}</span>
+                    <span className="font-mono-tech font-bold text-[#5379EE]">{prod.nutrients.proteinDV}</span>
                   </div>
                 </div>
               </div>
@@ -473,7 +473,7 @@ export const ProductAnalysisScreen: React.FC = () => {
                     className="p-4 rounded-2xl bg-white border border-slate-100 shadow-xs flex items-center justify-between"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-[#ecfccb] text-[#65a30d] flex items-center justify-center">
+                      <div className="w-10 h-10 rounded-full bg-[#EEF2FF] text-[#5379EE] flex items-center justify-center">
                         <span className="material-symbols-outlined text-xl">{cert.icon}</span>
                       </div>
                       <div>
@@ -481,7 +481,7 @@ export const ProductAnalysisScreen: React.FC = () => {
                         <p className="text-[11px] text-[#64748b]">{cert.details}</p>
                       </div>
                     </div>
-                    <span className="material-symbols-outlined text-[#65a30d] text-xl">check_circle</span>
+                    <span className="material-symbols-outlined text-[#5379EE] text-xl">check_circle</span>
                   </div>
                 ))}
               </div>
@@ -498,12 +498,12 @@ export const ProductAnalysisScreen: React.FC = () => {
             <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
               {/* Left: Callout */}
               <div className="flex items-start gap-4 max-w-xl">
-                <div className="w-14 h-14 rounded-2xl bg-[#ecfccb] text-[#65a30d] flex items-center justify-center shrink-0 shadow-xs">
+                <div className="w-14 h-14 rounded-2xl bg-[#EEF2FF] text-[#5379EE] flex items-center justify-center shrink-0 shadow-xs">
                   <span className="material-symbols-outlined text-3xl">health_and_safety</span>
                 </div>
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <span className="font-mono-tech text-[10px] uppercase bg-[#84cc16] text-[#0f172a] font-bold px-2 py-0.5 rounded-full">
+                    <span className="font-mono-tech text-[10px] uppercase bg-[#5379EE] text-white font-bold px-2 py-0.5 rounded-full">
                       100% Safe Match Found
                     </span>
                     <span className="font-mono-tech text-[10px] text-[#64748b]">Zero Allergen Conflicts</span>
@@ -514,17 +514,17 @@ export const ProductAnalysisScreen: React.FC = () => {
               </div>
 
               {/* Center: Score Mini Badge */}
-              <div className="flex items-center gap-6 bg-[#f7fee7] px-6 py-3.5 rounded-2xl border border-[#d9f99d] w-full lg:w-auto justify-around">
+              <div className="flex items-center gap-6 bg-[#EEF2FF] px-6 py-3.5 rounded-2xl border border-[#c7d2fe] w-full lg:w-auto justify-around">
                 <div className="text-center">
                   <span className="font-mono-tech text-[10px] text-[#64748b] uppercase block font-semibold">Score</span>
-                  <span className="text-base font-extrabold text-[#65a30d]">Grade {prod.safeAlternative.nutriScore}</span>
+                  <span className="text-base font-extrabold text-[#5379EE]">Grade {prod.safeAlternative.nutriScore}</span>
                 </div>
                 <div className="w-px h-8 bg-slate-200"></div>
                 <div className="text-center">
                   <span className="font-mono-tech text-[10px] text-[#64748b] uppercase block font-semibold">
                     Facility Risk
                   </span>
-                  <span className="text-base font-extrabold text-[#65a30d]">{prod.safeAlternative.facilityRisk}</span>
+                  <span className="text-base font-extrabold text-[#5379EE]">{prod.safeAlternative.facilityRisk}</span>
                 </div>
               </div>
 
@@ -536,7 +536,7 @@ export const ProductAnalysisScreen: React.FC = () => {
                     if (match) setSelectedProductId(match.id);
                     showToast('Switched to verified safe alternative!');
                   }}
-                  className="w-full lg:w-auto h-11 px-6 rounded-full bg-[#84cc16] hover:bg-[#65a30d] text-[#0f172a] hover:text-white font-mono-tech text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95"
+                  className="w-full lg:w-auto h-11 px-6 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white font-mono-tech text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95"
                 >
                   <span>View Safe Alternative</span>
                   <span className="material-symbols-outlined text-base">arrow_forward</span>
