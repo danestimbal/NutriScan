@@ -3,8 +3,60 @@ import { useApp } from '../context/AppContext';
 import { FoodProduct } from '../types';
 import { resolveBestProductImage } from '../utils/barcode';
 import { LandingSettingsPanel } from '../components/LandingSettingsPanel';
+import { UserManagementPanel } from '../components/UserManagementPanel';
+import { OWNER_ADMIN_EMAIL } from '../config/admin';
 
+/** Only admins see the console; everyone else gets a sign-in / access notice. */
 export const AdminScreen: React.FC = () => {
+  const { adminRole, isAdmin, currentUserEmail, setActiveTab, handleLogout } = useApp();
+
+  if (isAdmin) return <AdminConsole />;
+
+  const checking = adminRole === 'loading';
+  return (
+    <div className="w-full min-h-screen bg-[#f9f9ff] pt-28 pb-24 px-4 flex justify-center">
+      <div className="max-w-md w-full h-fit bg-white rounded-3xl border border-slate-100 shadow-xs p-8 text-center">
+        <span className="mx-auto w-14 h-14 rounded-2xl bg-[#EEF2FF] text-[#5379EE] flex items-center justify-center">
+          <span className={`material-symbols-outlined text-3xl ${checking ? 'animate-spin' : ''}`}>
+            {checking ? 'progress_activity' : 'admin_panel_settings'}
+          </span>
+        </span>
+        <h1 className="mt-4 text-lg font-extrabold text-[#0f172a]">
+          {checking ? 'Checking admin access…' : 'Admins only'}
+        </h1>
+        {!checking && (
+          <>
+            <p className="mt-2 text-sm text-[#64748b] leading-relaxed">
+              {currentUserEmail && currentUserEmail !== 'guest@ingreguide.ph'
+                ? `${currentUserEmail} does not have admin rights.`
+                : 'Sign in with an admin account to open the Admin Console.'}{' '}
+              Admin rights are granted by the owner ({OWNER_ADMIN_EMAIL}) and need a verified email, such as Google
+              sign-in.
+            </p>
+            <div className="mt-6 flex flex-wrap justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => setActiveTab('dashboard')}
+                className="px-4 py-2 rounded-full bg-[#f1f5f9] hover:bg-slate-200 text-[#0f172a] font-mono-tech text-xs font-bold cursor-pointer"
+              >
+                Back to app
+              </button>
+              <button
+                type="button"
+                onClick={() => handleLogout()}
+                className="px-4 py-2 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white font-mono-tech text-xs font-bold cursor-pointer"
+              >
+                Sign in with another account
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const AdminConsole: React.FC = () => {
   const {
     products,
     updateProduct,
@@ -31,7 +83,7 @@ export const AdminScreen: React.FC = () => {
 
   const [activeCatalogTab, setActiveCatalogTab] = useState<'all' | 'review' | 'flagged' | 'gluten'>('all');
   const [adminSearch, setAdminSearch] = useState('');
-  const [adminView, setAdminView] = useState<'catalog' | 'frontpage'>('catalog');
+  const [adminView, setAdminView] = useState<'catalog' | 'users' | 'frontpage'>('catalog');
   const [showNewModal, setShowNewModal] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -216,6 +268,7 @@ export const AdminScreen: React.FC = () => {
           {(
             [
               { id: 'catalog', label: 'Catalog & Moderation', icon: 'inventory_2' },
+              { id: 'users', label: 'Users', icon: 'manage_accounts' },
               { id: 'frontpage', label: 'Front Page Settings', icon: 'web' },
             ] as const
           ).map((view) => (
@@ -235,6 +288,8 @@ export const AdminScreen: React.FC = () => {
 
         {adminView === 'frontpage' ? (
           <LandingSettingsPanel onToast={showToast} />
+        ) : adminView === 'users' ? (
+          <UserManagementPanel onToast={showToast} />
         ) : (
           <>
         {/* Global Search Bar */}

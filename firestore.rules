@@ -19,18 +19,81 @@ service cloud.firestore {
       return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
-    // User profiles & dietary settings
+    // ---- Admin roles -------------------------------------------------------
+    // Keep OWNER_EMAIL in sync with src/config/admin.ts.
+    function ownerEmail() {
+      return 'danesensei@gmail.com';
+    }
+
+    function hasVerifiedEmail() {
+      return isSignedIn()
+        && request.auth.token.get('email_verified', false) == true
+        && request.auth.token.get('email', '') != '';
+    }
+
+    // The owner account: always an admin, and the only one who can grant admin rights.
+    function isOwnerAdmin() {
+      return hasVerifiedEmail() && request.auth.token.email == ownerEmail();
+    }
+
+    // Owner, or anyone the owner listed in /admins/{email}.
+    function isAdmin() {
+      return isOwnerAdmin()
+        || (hasVerifiedEmail()
+            && exists(/databases/$(database)/documents/admins/$(request.auth.token.email)));
+    }
+
+    // Fields only admins may change on a user profile.
+    function moderationFields() {
+      return ['suspended', 'suspendedAt', 'suspendedBy'];
+    }
+
+    function isSuspended(userId) {
+      return exists(/databases/$(database)/documents/users/$(userId))
+        && get(/databases/$(database)/documents/users/$(userId)).data.get('suspended', false) == true;
+    }
+
+    // ---- Admin list --------------------------------------------------------
+    match /admins/{email} {
+      // Users may check their own admin status; admins may see the full list.
+      allow get: if (hasVerifiedEmail() && request.auth.token.email == email) || isAdmin();
+      allow list: if isAdmin();
+      allow create, update: if isOwnerAdmin()
+        && email != ownerEmail()
+        && email == email.lower()
+        && request.resource.data.keys().hasOnly(['email', 'grantedBy', 'grantedAt'])
+        && request.resource.data.email == email;
+      allow delete: if isOwnerAdmin();
+    }
+
+    // ---- User profiles & dietary settings ----------------------------------
     match /users/{userId} {
-      allow get: if isOwner(userId);
-      allow create: if isOwner(userId) && isValidId(userId);
-      allow update: if isOwner(userId);
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+
+      allow create: if isOwner(userId)
+        && isValidId(userId)
+        && !request.resource.data.keys().hasAny(moderationFields());
+
+      // Owners edit their own profile but cannot touch moderation fields or write while suspended.
+      // Admins may only change moderation fields, and never on the owner account.
+      allow update: if (
+          isOwner(userId)
+          && resource.data.get('suspended', false) != true
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(moderationFields())
+        ) || (
+          isAdmin()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(moderationFields())
+          && resource.data.get('email', '') != ownerEmail()
+        );
+
       allow delete: if isOwner(userId);
 
       // User scan records & history
       match /scans/{scanId} {
-        allow read: if isOwner(userId);
-        allow create: if isOwner(userId) && isValidId(scanId);
-        allow update: if isOwner(userId);
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidId(scanId) && !isSuspended(userId);
+        allow update: if isOwner(userId) && !isSuspended(userId);
         allow delete: if isOwner(userId);
       }
     }
@@ -45,7 +108,7 @@ service cloud.firestore {
     // Front page content edited from Admin Console → Front Page Settings
     match /siteSettings/{settingId} {
       allow read: if true;
-      allow write: if isSignedIn();
+      allow write: if isAdmin();
     }
 
     // Additive policy rules engine

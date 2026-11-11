@@ -24,6 +24,13 @@ import {
 import { doc, getDoc, setDoc, deleteDoc, onSnapshot, collection } from 'firebase/firestore';
 import { sensoryEngine } from '../utils/soundEffects';
 import { seedDatabaseIfEmpty } from '../utils/firestoreSeeder';
+import { AdminRole, OWNER_ADMIN_EMAIL } from '../config/admin';
+
+/** Moderation fields are managed by admins only; never echo them back in profile writes. */
+const stripModerationFields = <T extends Record<string, any>>(data: T): T => {
+  const { suspended, suspendedAt, suspendedBy, ...rest } = data as Record<string, any>;
+  return rest as T;
+};
 
 export type NavigationTab =
   | 'dashboard'
@@ -71,6 +78,10 @@ interface AppContextType {
   hazardAlertProduct: FoodProduct | null;
   setHazardAlertProduct: (prod: FoodProduct | null) => void;
   triggerScanCheck: (product: FoodProduct) => void;
+  adminRole: AdminRole;
+  isAdmin: boolean;
+  accountNotice: string | null;
+  clearAccountNotice: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -167,6 +178,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(initialUserProfile.email);
   const [hazardAlertProduct, setHazardAlertProduct] = useState<FoodProduct | null>(null);
   const [isSeeding, setIsSeeding] = useState<boolean>(false);
+  const [adminRole, setAdminRole] = useState<AdminRole>('loading');
+  const [accountNotice, setAccountNotice] = useState<string | null>(null);
 
   // Initial seed check & real-time sync with Firestore database collections
   useEffect(() => {
@@ -226,6 +239,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     let unsubscribeScans: (() => void) | null = null;
     let unsubscribeUserDoc: (() => void) | null = null;
+    let unsubscribeAdmin: (() => void) | null = null;
 
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (unsubscribeScans) {
@@ -236,10 +250,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         unsubscribeUserDoc();
         unsubscribeUserDoc = null;
       }
+      if (unsubscribeAdmin) {
+        unsubscribeAdmin();
+        unsubscribeAdmin = null;
+      }
 
       if (user) {
         setIsLoggedIn(true);
         setCurrentUserEmail(user.email);
+
+        // Admin role: the owner email is always an admin; others are listed in `admins/{email}`.
+        // Firestore rules enforce the same check, so this only drives what the UI shows.
+        const email = (user.email || '').toLowerCase();
+        if (email && user.emailVerified && email === OWNER_ADMIN_EMAIL) {
+          setAdminRole('owner');
+        } else if (email && user.emailVerified) {
+          setAdminRole('loading');
+          unsubscribeAdmin = onSnapshot(
+            doc(db, 'admins', email),
+            (snap) => setAdminRole(snap.exists() ? 'admin' : 'none'),
+            () => setAdminRole('none')
+          );
+        } else {
+          setAdminRole('none');
+        }
+
+        let lastLoginStamped = false;
 
         // Real-time listener for user's scan history in `users/{uid}/scans`
         const scansColl = collection(db, 'users', user.uid, 'scans');
@@ -276,7 +312,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           userRef,
           (snap) => {
             if (snap.exists()) {
-              const data = snap.data() as Partial<UserAllergenProfile>;
+              const rawData = snap.data() as Partial<UserAllergenProfile> & { suspended?: boolean };
+              if (rawData.suspended === true) {
+                setAccountNotice(
+                  'This account has been suspended by an IngreGuide administrator. Contact the project team if you think this is a mistake.'
+                );
+                handleLogoutAction().catch(() => {});
+                return;
+              }
+              const data = stripModerationFields(rawData) as Partial<UserAllergenProfile>;
+              if (!lastLoginStamped) {
+                lastLoginStamped = true;
+                setDoc(userRef, { lastLoginAt: new Date().toISOString() }, { merge: true }).catch(() => {});
+              }
               if (
                 Array.isArray(data.intakeHistory) &&
                 data.intakeHistory.length > 0 &&
@@ -342,7 +390,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                   savedProductIds: prev.savedProductIds || ['prod-silk-almond', 'prod-golden-oat-milk', 'prod-japanese-matcha'],
                 });
                 localStorage.setItem('ingreguide_profile', JSON.stringify(updated));
-                setDoc(userRef, sanitizePayload(updated), { merge: true }).catch(() => {});
+                lastLoginStamped = true;
+                setDoc(
+                  userRef,
+                  sanitizePayload({ ...stripModerationFields(updated), lastLoginAt: new Date().toISOString() }),
+                  { merge: true }
+                ).catch(() => {});
                 return updated;
               });
             }
@@ -354,18 +407,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } else {
         setIsLoggedIn(false);
         setCurrentUserEmail(null);
+        setAdminRole('none');
       }
     });
     return () => {
       if (unsubscribeScans) unsubscribeScans();
       if (unsubscribeUserDoc) unsubscribeUserDoc();
+      if (unsubscribeAdmin) unsubscribeAdmin();
       unsubscribe();
     };
   }, []);
 
   // Save profile to local storage & Firestore if user is signed in
   const updateUserProfile = async (partial: Partial<UserAllergenProfile>) => {
-    const updated = { ...userProfile, ...partial, lastSynced: 'Just now' };
+    const updated = stripModerationFields({ ...userProfile, ...partial, lastSynced: 'Just now' });
     setUserProfile(updated);
     localStorage.setItem('ingreguide_profile', JSON.stringify(updated));
 
@@ -731,6 +786,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         hazardAlertProduct,
         setHazardAlertProduct,
         triggerScanCheck,
+        adminRole,
+        isAdmin: adminRole === 'admin' || adminRole === 'owner',
+        accountNotice,
+        clearAccountNotice: () => setAccountNotice(null),
       }}
     >
       {children}

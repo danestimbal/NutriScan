@@ -15,12 +15,29 @@ import { AdminScreen } from './screens/AdminScreen';
 import { OnboardingProfileScreen } from './screens/OnboardingProfileScreen';
 
 const MainContent: React.FC = () => {
-  const { activeTab, setActiveTab } = useApp();
+  const { activeTab, setActiveTab, isAdmin, accountNotice, clearAccountNotice } = useApp();
   const isLanding = activeTab === 'auth';
 
   return (
     <div className="flex flex-col min-h-screen bg-[#f9f9ff] text-[#1e293b]">
       {!isLanding && <Header />}
+      {accountNotice && (
+        <div
+          role="alert"
+          className="fixed top-4 left-1/2 -translate-x-1/2 z-[60] w-[calc(100%-2rem)] max-w-xl p-4 rounded-2xl bg-[#fff1f2] border border-[#fecdd3] text-[#9f1239] text-sm font-semibold shadow-xl flex items-start gap-3"
+        >
+          <span className="material-symbols-outlined text-[#e11d48]">block</span>
+          <span className="flex-1">{accountNotice}</span>
+          <button
+            type="button"
+            onClick={clearAccountNotice}
+            aria-label="Dismiss"
+            className="text-[#e11d48] hover:text-[#9f1239] cursor-pointer"
+          >
+            <span className="material-symbols-outlined text-lg">close</span>
+          </button>
+        </div>
+      )}
       <PushTakeoverModal />
       <OfflineIndicator />
 
@@ -64,12 +81,14 @@ const MainContent: React.FC = () => {
             >
               E-Codes Index
             </button>
-            <button
-              onClick={() => setActiveTab('admin')}
-              className="transition-colors font-bold text-[#5379EE] hover:underline cursor-pointer"
-            >
-              Admin Console
-            </button>
+            {isAdmin && (
+              <button
+                onClick={() => setActiveTab('admin')}
+                className="transition-colors font-bold text-[#5379EE] hover:underline cursor-pointer"
+              >
+                Admin Console
+              </button>
+            )}
           </div>
         </div>
       </footer>

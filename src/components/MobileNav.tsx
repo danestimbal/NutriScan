@@ -2,7 +2,7 @@ import React from 'react';
 import { useApp, NavigationTab } from '../context/AppContext';
 
 export const MobileNav: React.FC = () => {
-  const { activeTab, setActiveTab } = useApp();
+  const { activeTab, setActiveTab, isAdmin } = useApp();
 
   return (
     <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-[#e2e8f0] pb-safe shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
@@ -57,7 +57,8 @@ export const MobileNav: React.FC = () => {
           <span className="font-sans text-[11px] font-semibold tracking-tight">Products</span>
         </button>
 
-        {/* Item 5: Admin / Operations */}
+        {/* Item 5: Admin / Operations (admins only) */}
+        {isAdmin && (
         <button
           onClick={() => setActiveTab('admin')}
           className={`flex flex-col items-center justify-center gap-0.5 flex-1 transition-all ${
@@ -67,6 +68,7 @@ export const MobileNav: React.FC = () => {
           <span className="material-symbols-outlined text-[22px]">tune</span>
           <span className="font-sans text-[11px] font-semibold tracking-tight">Admin</span>
         </button>
+        )}
       </div>
     </nav>
   );

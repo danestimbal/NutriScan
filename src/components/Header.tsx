@@ -3,7 +3,8 @@ import { useApp, NavigationTab } from '../context/AppContext';
 import { PWAInstallButton } from './PWAInstallButton';
 
 export const Header: React.FC = () => {
-  const { activeTab, setActiveTab, userProfile, isLoggedIn, handleLogout, products, setSelectedProductId } = useApp();
+  const { activeTab, setActiveTab, userProfile, isLoggedIn, handleLogout, products, setSelectedProductId, isAdmin } =
+    useApp();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<typeof products>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
@@ -173,6 +174,7 @@ export const Header: React.FC = () => {
         {/* Action Controls & Profile Avatar */}
         <div className="flex items-center gap-2 sm:gap-3">
           {/* Admin shortcut button */}
+          {isAdmin && (
           <button
             onClick={() => setActiveTab('admin')}
             className={`hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-mono-tech text-[11px] font-bold transition-colors ${
@@ -184,6 +186,7 @@ export const Header: React.FC = () => {
             <span className="material-symbols-outlined text-sm">shield_person</span>
             <span>Admin</span>
           </button>
+          )}
 
           {/* User Profile Avatar / Menu */}
           <div className="relative">
@@ -253,6 +256,7 @@ export const Header: React.FC = () => {
                     Edit Allergen Radar
                   </button>
                   <PWAInstallButton variant="menu" />
+                  {isAdmin && (
                   <button
                     onClick={() => {
                       setActiveTab('admin');
@@ -263,6 +267,7 @@ export const Header: React.FC = () => {
                     <span className="material-symbols-outlined text-sm text-[#0f172a]">admin_panel_settings</span>
                     Operations Console
                   </button>
+                  )}
                   <button
                     onClick={() => {
                       setActiveTab('auth');
