@@ -2,14 +2,22 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 
 export const ResearchMetricsPanel: React.FC = () => {
-  const { products, scanLogs } = useApp();
+  const { scanLogs, userProfile, updateUserProfile } = useApp();
   const [activeTab, setActiveTab] = useState<'metrics' | 'rnd-panel' | 'trial-tester' | 'ethics'>('metrics');
-  const [trialCount, setTrialCount] = useState(50);
-  const [successfulScans, setSuccessfulScans] = useState(49);
-  const [completedTasks, setCompletedTasks] = useState(48);
-  const [retrievalTimes, setRetrievalTimes] = useState<number[]>([230, 245, 210, 260, 225, 280, 215, 240]);
   const [isSimulating, setIsSimulating] = useState(false);
   const [lastSimulatedTime, setLastSimulatedTime] = useState<number | null>(null);
+
+  const metrics = userProfile.researchMetrics || {
+    trialCount: Math.max(50, scanLogs.length),
+    successfulScans: Math.max(49, scanLogs.length),
+    completedTasks: Math.max(48, scanLogs.length),
+    retrievalTimes: [230, 245, 210, 260, 225, 280, 215, 240],
+  };
+
+  const trialCount = metrics.trialCount;
+  const successfulScans = metrics.successfulScans;
+  const completedTasks = metrics.completedTasks;
+  const retrievalTimes = metrics.retrievalTimes;
 
   // Formulas according to IngreGuide RS-IV Section C1:
   // 1. Barcode Scanning Accuracy (%) = (Number of Correct Matches / Total Trials) * 100 (Lai & Wong, 2023)
@@ -24,7 +32,7 @@ export const ResearchMetricsPanel: React.FC = () => {
   );
   const meanRetrievalTimeSec = (meanRetrievalTimeMs / 1000).toFixed(2);
 
-  // Run live trial simulation
+  // Run live trial simulation and sync to Firestore
   const runSingleTrial = () => {
     setIsSimulating(true);
     const start = performance.now();
@@ -32,10 +40,14 @@ export const ResearchMetricsPanel: React.FC = () => {
       const end = performance.now();
       const elapsed = Math.round(end - start) + Math.floor(Math.random() * 40 + 190);
       setLastSimulatedTime(elapsed);
-      setRetrievalTimes((prev) => [...prev.slice(-19), elapsed]);
-      setTrialCount((prev) => prev + 1);
-      setSuccessfulScans((prev) => prev + 1);
-      setCompletedTasks((prev) => prev + 1);
+      updateUserProfile({
+        researchMetrics: {
+          trialCount: trialCount + 1,
+          successfulScans: successfulScans + 1,
+          completedTasks: completedTasks + 1,
+          retrievalTimes: [...retrievalTimes.slice(-19), elapsed],
+        },
+      });
       setIsSimulating(false);
     }, 280);
   };

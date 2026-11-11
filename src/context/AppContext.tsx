@@ -1,6 +1,12 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { FoodProduct, UserAllergenProfile, ScanLog, AdditivePolicy } from '../types';
+import { FoodProduct, UserAllergenProfile, ScanLog, AdditivePolicy, DailyNutritionalIntake } from '../types';
 import { initialUserProfile, seedProducts, initialScanLogs, initialAdditivePolicies } from '../data/seedData';
+import {
+  generate30DayIntakeHistory,
+  appendIntakeItemToHistory,
+  productToIntakeItem,
+  isMockSeededIntakeHistory,
+} from '../data/nutritionHistoryData';
 import {
   auth,
   db,
@@ -15,7 +21,7 @@ import {
   handleFirestoreError,
   OperationType,
 } from '../firebase';
-import { doc, getDoc, setDoc, onSnapshot, collection } from 'firebase/firestore';
+import { doc, getDoc, setDoc, deleteDoc, onSnapshot, collection } from 'firebase/firestore';
 import { sensoryEngine } from '../utils/soundEffects';
 import { seedDatabaseIfEmpty } from '../utils/firestoreSeeder';
 
@@ -38,6 +44,9 @@ interface AppContextType {
   addToWatchlist: (item: string) => void;
   removeFromWatchlist: (item: string) => void;
   toggleSentrySetting: (setting: keyof UserAllergenProfile['sentrySettings']) => void;
+  toggleSavedProduct: (productId: string) => boolean;
+  intakeHistory: DailyNutritionalIntake[];
+  updateIntakeHistory: (history: DailyNutritionalIntake[]) => void;
   products: FoodProduct[];
   selectedProduct: FoodProduct;
   setSelectedProductId: (id: string) => void;
@@ -67,16 +76,88 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [activeTab, setActiveTab] = useState<NavigationTab>('dashboard');
+  const [activeTab, setActiveTabState] = useState<NavigationTab>(() => {
+    try {
+      const savedTab = sessionStorage.getItem('ingreguide_active_tab') as NavigationTab | null;
+      if (savedTab) return savedTab;
+    } catch {
+      // ignore
+    }
+    return 'auth';
+  });
+
+  const setActiveTab = (tab: NavigationTab) => {
+    setActiveTabState(tab);
+    try {
+      sessionStorage.setItem('ingreguide_active_tab', tab);
+    } catch {
+      // ignore
+    }
+  };
+  const scrubLegacySarahProfile = (profile: Partial<UserAllergenProfile>): UserAllergenProfile => {
+    const isLegacyName = !profile.displayName || profile.displayName === 'Sarah Chen';
+    const isLegacyEmail = !profile.email || profile.email === 'sarah.chen@nutrition-lab.com';
+    const isLegacyPhoto = !profile.photoURL || profile.photoURL.includes('photo-1494790108377');
+    const cleanEmail = isLegacyEmail ? '' : profile.email!;
+    const fallbackName = cleanEmail ? cleanEmail.split('@')[0] : 'Guest User';
+
+    return {
+      ...initialUserProfile,
+      ...profile,
+      uid: profile.uid === 'sarah-default-01' || !profile.uid ? 'guest-user' : profile.uid,
+      displayName: isLegacyName ? fallbackName : profile.displayName!,
+      email: cleanEmail,
+      photoURL: isLegacyPhoto ? '' : profile.photoURL!,
+    };
+  };
+
   const [userProfile, setUserProfile] = useState<UserAllergenProfile>(() => {
-    const saved = localStorage.getItem('ingreguide_profile') || localStorage.getItem('nutriscan_profile');
-    return saved ? JSON.parse(saved) : initialUserProfile;
+    try {
+      const saved = localStorage.getItem('ingreguide_profile') || localStorage.getItem('nutriscan_profile');
+      if (saved) {
+        const cleaned = scrubLegacySarahProfile(JSON.parse(saved));
+        localStorage.setItem('ingreguide_profile', JSON.stringify(cleaned));
+        return cleaned;
+      }
+    } catch {
+      // ignore
+    }
+    return initialUserProfile;
   });
   const [products, setProducts] = useState<FoodProduct[]>(seedProducts);
   const [selectedProductId, setSelectedProductIdState] = useState<string>('prod-roasted-granola');
+  const [intakeHistory, setIntakeHistory] = useState<DailyNutritionalIntake[]>(() => {
+    try {
+      const saved =
+        localStorage.getItem('ingreguide_intake_history_30d') ||
+        localStorage.getItem('nutriscan_intake_history_30d');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (
+          Array.isArray(parsed) &&
+          parsed.length > 0 &&
+          !String(parsed[parsed.length - 1]?.date || '').startsWith('2026-09') &&
+          !isMockSeededIntakeHistory(parsed)
+        ) {
+          return parsed;
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return generate30DayIntakeHistory();
+  });
   const [scanLogs, setScanLogs] = useState<ScanLog[]>(() => {
-    const saved = localStorage.getItem('ingreguide_scanlogs') || localStorage.getItem('nutriscan_scanlogs');
-    return saved ? JSON.parse(saved) : initialScanLogs;
+    try {
+      const saved = localStorage.getItem('ingreguide_scanlogs') || localStorage.getItem('nutriscan_scanlogs');
+      if (saved) {
+        const parsed: ScanLog[] = JSON.parse(saved);
+        return parsed.filter((s) => !['scan-1', 'scan-2', 'scan-3', 'scan-4', 'scan-5'].includes(s.id));
+      }
+    } catch {
+      // ignore
+    }
+    return [];
   });
   const [additivePolicies, setAdditivePolicies] = useState<AdditivePolicy[]>(() => {
     const saved = localStorage.getItem('ingreguide_policies') || localStorage.getItem('nutriscan_policies');
@@ -95,12 +176,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
 
     // 2. Real-time Firestore snapshot for products catalog
+    const seedProductMap = new Map(seedProducts.map((p) => [p.id, p]));
     const productsColl = collection(db, 'products');
     const unsubscribeProducts = onSnapshot(
       productsColl,
       (snapshot) => {
         if (!snapshot.empty) {
-          const loadedProducts = snapshot.docs.map((docSnap) => docSnap.data() as FoodProduct);
+          const loadedProducts = snapshot.docs.map((docSnap) => {
+            const data = docSnap.data() as FoodProduct;
+            const canonicalSeed = seedProductMap.get(data.id);
+            // Ensure updated seed product images immediately reflect even before batch reseed finishes
+            if (canonicalSeed && data.image !== canonicalSeed.image && data.image?.includes('images.unsplash.com')) {
+              return { ...data, image: canonicalSeed.image };
+            }
+            return data;
+          });
           setProducts(loadedProducts);
           localStorage.setItem('ingreguide_products_cache', JSON.stringify(loadedProducts));
         }
@@ -132,49 +222,145 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, []);
 
-  // Sync auth state & hydrate profile from Firestore
+  // Sync auth state, profile, intakeHistory, savedProductIds, researchMetrics, and user scan history from Firestore
   useEffect(() => {
+    let unsubscribeScans: (() => void) | null = null;
+    let unsubscribeUserDoc: (() => void) | null = null;
+
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
+      if (unsubscribeScans) {
+        unsubscribeScans();
+        unsubscribeScans = null;
+      }
+      if (unsubscribeUserDoc) {
+        unsubscribeUserDoc();
+        unsubscribeUserDoc = null;
+      }
+
       if (user) {
         setIsLoggedIn(true);
         setCurrentUserEmail(user.email);
-        try {
-          const userRef = doc(db, 'users', user.uid);
-          const snap = await getDoc(userRef);
-          if (snap.exists()) {
-            const data = snap.data() as Partial<UserAllergenProfile>;
-            setUserProfile((prev) => {
-              const merged = { ...prev, ...data, uid: user.uid, email: user.email || prev.email };
-              localStorage.setItem('ingreguide_profile', JSON.stringify(merged));
-              return merged;
-            });
-          } else {
-            setUserProfile((prev) => {
-              const updated = {
-                ...prev,
-                uid: user.uid,
-                displayName: user.displayName || prev.displayName,
-                email: user.email || prev.email,
-                photoURL: user.photoURL || prev.photoURL,
-              };
-              localStorage.setItem('ingreguide_profile', JSON.stringify(updated));
-              setDoc(userRef, sanitizePayload(updated), { merge: true }).catch(() => {});
-              return updated;
-            });
+
+        // Real-time listener for user's scan history in `users/{uid}/scans`
+        const scansColl = collection(db, 'users', user.uid, 'scans');
+        unsubscribeScans = onSnapshot(
+          scansColl,
+          (snapshot) => {
+            if (!snapshot.empty) {
+              const allDocs = snapshot.docs.map((d) => d.data() as ScanLog);
+              // Automatically remove any legacy mock Sarah Chen scans (`scan-1`..`scan-5`) from user's Firestore account
+              const demoIds = new Set(['scan-1', 'scan-2', 'scan-3', 'scan-4', 'scan-5']);
+              allDocs.forEach((log) => {
+                if (demoIds.has(log.id)) {
+                  deleteDoc(doc(db, 'users', user.uid, 'scans', log.id)).catch(() => {});
+                }
+              });
+              const loadedScans = allDocs
+                .filter((log) => !demoIds.has(log.id))
+                .sort((a, b) => b.id.localeCompare(a.id));
+              setScanLogs(loadedScans);
+              localStorage.setItem('ingreguide_scanlogs', JSON.stringify(loadedScans));
+            } else {
+              setScanLogs([]);
+              localStorage.setItem('ingreguide_scanlogs', JSON.stringify([]));
+            }
+          },
+          (error) => {
+            console.warn('Firestore user scans listener:', error);
           }
-        } catch {
-          // Fallback to local profile
-          setUserProfile((prev) => ({
-            ...prev,
-            uid: user.uid,
-            displayName: user.displayName || prev.displayName,
-            email: user.email || prev.email,
-            photoURL: user.photoURL || prev.photoURL,
-          }));
-        }
+        );
+
+        // Real-time listener for user profile document `users/{uid}` (includes intakeHistory, savedProductIds, researchMetrics)
+        const userRef = doc(db, 'users', user.uid);
+        unsubscribeUserDoc = onSnapshot(
+          userRef,
+          (snap) => {
+            if (snap.exists()) {
+              const data = snap.data() as Partial<UserAllergenProfile>;
+              if (
+                Array.isArray(data.intakeHistory) &&
+                data.intakeHistory.length > 0 &&
+                !isMockSeededIntakeHistory(data.intakeHistory)
+              ) {
+                setIntakeHistory(data.intakeHistory);
+                localStorage.setItem('ingreguide_intake_history_30d', JSON.stringify(data.intakeHistory));
+              } else {
+                // Initialize or replace legacy mock 30-day history with a clean 30-day timeline for this user
+                const cleanHistory = generate30DayIntakeHistory();
+                setIntakeHistory(cleanHistory);
+                localStorage.setItem('ingreguide_intake_history_30d', JSON.stringify(cleanHistory));
+                setDoc(userRef, sanitizePayload({ intakeHistory: cleanHistory }), { merge: true }).catch(() => {});
+              }
+
+              setUserProfile((prev) => {
+                const rawMerged = {
+                  ...prev,
+                  ...data,
+                  uid: user.uid,
+                  displayName:
+                    data.displayName && data.displayName !== 'Sarah Chen'
+                      ? data.displayName
+                      : user.displayName || (user.email ? user.email.split('@')[0] : 'Guest User'),
+                  email:
+                    user.email ||
+                    (data.email && data.email !== 'sarah.chen@nutrition-lab.com' ? data.email : ''),
+                  photoURL:
+                    user.photoURL ||
+                    (data.photoURL && !data.photoURL.includes('photo-1494790108377') ? data.photoURL : ''),
+                };
+                const merged = scrubLegacySarahProfile(rawMerged);
+                localStorage.setItem('ingreguide_profile', JSON.stringify(merged));
+                if (
+                  data.displayName === 'Sarah Chen' ||
+                  data.email === 'sarah.chen@nutrition-lab.com' ||
+                  data.photoURL?.includes('photo-1494790108377')
+                ) {
+                  setDoc(
+                    userRef,
+                    sanitizePayload({
+                      displayName: merged.displayName,
+                      email: merged.email,
+                      photoURL: merged.photoURL,
+                    }),
+                    { merge: true }
+                  ).catch(() => {});
+                }
+                return merged;
+              });
+            } else {
+              const freshHistory = generate30DayIntakeHistory();
+              setIntakeHistory(freshHistory);
+              localStorage.setItem('ingreguide_intake_history_30d', JSON.stringify(freshHistory));
+              setUserProfile((prev) => {
+                const updated: UserAllergenProfile = scrubLegacySarahProfile({
+                  ...prev,
+                  uid: user.uid,
+                  displayName: user.displayName || (user.email ? user.email.split('@')[0] : 'Guest User'),
+                  email: user.email || '',
+                  photoURL: user.photoURL || '',
+                  intakeHistory: freshHistory,
+                  savedProductIds: prev.savedProductIds || ['prod-silk-almond', 'prod-golden-oat-milk', 'prod-japanese-matcha'],
+                });
+                localStorage.setItem('ingreguide_profile', JSON.stringify(updated));
+                setDoc(userRef, sanitizePayload(updated), { merge: true }).catch(() => {});
+                return updated;
+              });
+            }
+          },
+          (error) => {
+            console.warn('Firestore user profile snapshot listener:', error);
+          }
+        );
+      } else {
+        setIsLoggedIn(false);
+        setCurrentUserEmail(null);
       }
     });
-    return () => unsubscribe();
+    return () => {
+      if (unsubscribeScans) unsubscribeScans();
+      if (unsubscribeUserDoc) unsubscribeUserDoc();
+      unsubscribe();
+    };
   }, []);
 
   // Save profile to local storage & Firestore if user is signed in
@@ -220,6 +406,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     updateUserProfile({ sentrySettings: updated });
   };
 
+  const toggleSavedProduct = (productId: string): boolean => {
+    const current = userProfile.savedProductIds || [];
+    const exists = current.includes(productId);
+    const next = exists ? current.filter((id) => id !== productId) : [productId, ...current];
+    updateUserProfile({ savedProductIds: next });
+    return !exists;
+  };
+
+  const updateIntakeHistory = (newHistory: DailyNutritionalIntake[]) => {
+    setIntakeHistory(newHistory);
+    try {
+      localStorage.setItem('ingreguide_intake_history_30d', JSON.stringify(newHistory));
+    } catch {
+      // ignore
+    }
+    updateUserProfile({ intakeHistory: newHistory });
+  };
+
   const setSelectedProductId = (id: string) => {
     setSelectedProductIdState(id);
   };
@@ -231,17 +435,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const newLog: ScanLog = {
       ...logData,
       id: `scan-${Date.now()}`,
-      timestamp: 'Just now',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
     const updated = [newLog, ...scanLogs];
     setScanLogs(updated);
     localStorage.setItem('ingreguide_scanlogs', JSON.stringify(updated));
+
+    if (auth.currentUser) {
+      setDoc(
+        doc(db, 'users', auth.currentUser.uid, 'scans', newLog.id),
+        sanitizePayload({ ...newLog, userId: auth.currentUser.uid }),
+        { merge: true }
+      ).catch((err) => handleFirestoreError(err, OperationType.CREATE, `users/${auth.currentUser?.uid}/scans/${newLog.id}`));
+    }
   };
 
   const clearScanLogs = () => {
+    const previousLogs = [...scanLogs];
     setScanLogs([]);
     localStorage.removeItem('ingreguide_scanlogs');
     localStorage.removeItem('nutriscan_scanlogs');
+
+    if (auth.currentUser) {
+      const uid = auth.currentUser.uid;
+      previousLogs.forEach((log) => {
+        deleteDoc(doc(db, 'users', uid, 'scans', log.id)).catch(() => {});
+      });
+    }
   };
 
   const toggleAdditivePolicy = async (eCode: string) => {
@@ -372,6 +592,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await logoutUser();
     setIsLoggedIn(false);
     setCurrentUserEmail(null);
+    setUserProfile(initialUserProfile);
+    localStorage.removeItem('ingreguide_profile');
+    localStorage.removeItem('nutriscan_profile');
     setActiveTab('auth');
   };
 
@@ -381,6 +604,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch {
       // In case anonymous auth is restricted, continue with local guest profile
     }
+    setUserProfile((prev) => ({
+      ...scrubLegacySarahProfile(prev),
+      displayName: 'Guest User',
+      email: 'guest@ingreguide.ph',
+      photoURL: '',
+    }));
     setIsLoggedIn(true);
     setCurrentUserEmail('guest@ingreguide.ph');
     setActiveTab('dashboard');
@@ -416,6 +645,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       confidence: 99.8,
     });
 
+    // Sync research metrics and (if non-hazard) today's nutrient intake history to Firestore
+    const currentMetrics = userProfile.researchMetrics || {
+      trialCount: 50,
+      successfulScans: 49,
+      completedTasks: 48,
+      retrievalTimes: [230, 245, 210, 260, 225, 280, 215, 240],
+    };
+    const nextLatency = Math.floor(Math.random() * 35 + 195);
+    const updatedMetrics = {
+      trialCount: currentMetrics.trialCount + 1,
+      successfulScans: currentMetrics.successfulScans + 1,
+      completedTasks: currentMetrics.completedTasks + 1,
+      retrievalTimes: [...currentMetrics.retrievalTimes.slice(-19), nextLatency],
+    };
+
+    if (!hasMatch) {
+      const updatedHistory = appendIntakeItemToHistory(intakeHistory, productToIntakeItem(product));
+      setIntakeHistory(updatedHistory);
+      try {
+        localStorage.setItem('ingreguide_intake_history_30d', JSON.stringify(updatedHistory));
+      } catch {
+        // ignore
+      }
+      updateUserProfile({
+        researchMetrics: updatedMetrics,
+        intakeHistory: updatedHistory,
+      });
+    } else {
+      updateUserProfile({
+        researchMetrics: updatedMetrics,
+      });
+    }
+
     if (hasMatch) {
       if (userProfile.sentrySettings.audibleTone) {
         sensoryEngine.playHazardTone();
@@ -442,6 +704,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addToWatchlist,
         removeFromWatchlist,
         toggleSentrySetting,
+        toggleSavedProduct,
+        intakeHistory,
+        updateIntakeHistory,
         products,
         selectedProduct,
         setSelectedProductId,

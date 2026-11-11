@@ -2,10 +2,10 @@ import { FoodProduct, UserAllergenProfile, ScanLog, AdditivePolicy } from '../ty
 import { comprehensiveSeedProducts } from './seedProducts50';
 
 export const initialUserProfile: UserAllergenProfile = {
-  uid: 'sarah-default-01',
-  displayName: 'Sarah Chen',
-  email: 'sarah.chen@nutrition-lab.com',
-  photoURL: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
+  uid: 'guest-user',
+  displayName: 'Guest User',
+  email: '',
+  photoURL: '',
   activeAllergens: [
     {
       id: 'peanuts',

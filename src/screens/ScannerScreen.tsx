@@ -1,6 +1,30 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { BrowserMultiFormatReader } from '@zxing/browser';
 import { useApp } from '../context/AppContext';
 import { FoodProduct } from '../types';
+import {
+  createBarcodeReader,
+  findProductByBarcode,
+  cameraSupportStatus,
+  decodeVideoFrame,
+  decodeImageUrl,
+  fetchExternalProductByBarcode,
+  isPlaceholderProductImage,
+  resolveBestProductImage,
+} from '../utils/barcode';
+
+type CameraStatus = 'starting' | 'active' | 'denied' | 'insecure' | 'unsupported' | 'no-camera' | 'error';
+
+const CAMERA_STATUS_MESSAGES: Record<Exclude<CameraStatus, 'active' | 'starting'>, string> = {
+  denied: 'Camera permission was denied. Allow camera access in your browser settings, then retry.',
+  insecure: 'Camera access requires HTTPS. Open the app via https:// or http://localhost.',
+  unsupported: 'This browser does not support camera access. Upload a photo or enter the code manually.',
+  'no-camera': 'No camera was found on this device. Upload a photo or enter the code manually.',
+  error: 'The camera could not be started. It may be in use by another app.',
+};
+
+const DEFAULT_HINT = 'Hold barcode 20–30cm from the camera so it is sharp, in good light';
+const ZOOM_FACTORS = { '1x': 1, '2x': 2, '3x': 3 } as const;
 
 export const ScannerScreen: React.FC = () => {
   const {
@@ -10,6 +34,8 @@ export const ScannerScreen: React.FC = () => {
     scanLogs,
     clearScanLogs,
     triggerScanCheck,
+    addNewProduct,
+    updateProduct,
     userProfile,
   } = useApp();
 
@@ -18,70 +44,292 @@ export const ScannerScreen: React.FC = () => {
   const [manualError, setManualError] = useState('');
   const [zoomLevel, setZoomLevel] = useState<'1x' | '2x' | '3x'>('1x');
   const [torchOn, setTorchOn] = useState(false);
-  const [cameraActive, setCameraActive] = useState(false);
+  const [cameraStatus, setCameraStatus] = useState<CameraStatus>('starting');
+  const [cameraRetryKey, setCameraRetryKey] = useState(0);
+  const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string | undefined>(undefined);
+  const [torchSupported, setTorchSupported] = useState(false);
+  const [zoomRange, setZoomRange] = useState<{ min: number; max: number } | null>(null);
+  const [resolution, setResolution] = useState<string | null>(null);
+  const [targetAcquired, setTargetAcquired] = useState(false);
+  const [isDecodingFile, setIsDecodingFile] = useState(false);
   const [detectionModalProduct, setDetectionModalProduct] = useState<FoodProduct | null>(null);
-  const [toastHint, setToastHint] = useState('Hold barcode steady 15–20cm from camera lens');
+  const [notFoundCode, setNotFoundCode] = useState<string | null>(null);
+  const [toastHint, setToastHint] = useState(DEFAULT_HINT);
+
+  const cameraActive = cameraStatus === 'active';
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const readerRef = useRef<BrowserMultiFormatReader | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const lastScanRef = useRef<{ code: string; at: number } | null>(null);
+  const modalOpenRef = useRef(false);
+  const targetTimerRef = useRef<number | undefined>(undefined);
 
-  // Initialize camera stream
-  const startCamera = async () => {
-    try {
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
-        });
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.play();
-          setCameraActive(true);
-        }
-      }
-    } catch (err) {
-      console.warn('Real webcam stream unavailable, fallback simulation active:', err);
-      setCameraActive(false);
-    }
+  const getReader = () => {
+    if (!readerRef.current) readerRef.current = createBarcodeReader();
+    return readerRef.current;
   };
 
+  // Pause camera result handling while a result modal is open
   useEffect(() => {
-    startCamera();
-    return () => {
-      if (videoRef.current && videoRef.current.srcObject) {
-        const stream = videoRef.current.srcObject as MediaStream;
-        stream.getTracks().forEach((track) => track.stop());
-      }
-    };
-  }, []);
+    modalOpenRef.current = !!detectionModalProduct || !!notFoundCode;
+  }, [detectionModalProduct, notFoundCode]);
 
   const handleScanProduct = (prod: FoodProduct) => {
     triggerScanCheck(prod);
+    setNotFoundCode(null);
     setDetectionModalProduct(prod);
   };
 
-  const handleManualSearch = (codeToSearch?: string) => {
+  /** Looks up a decoded barcode locally first, then queries RetailerAPI + Open Food Facts. */
+  const handleBarcodeResult = async (code: string) => {
+    const match = findProductByBarcode(products, code);
+    if (match) {
+      if (isPlaceholderProductImage(match.image)) {
+        const betterImage = await resolveBestProductImage(match);
+        const enriched = { ...match, image: betterImage };
+        await updateProduct(enriched);
+        handleScanProduct(enriched);
+      } else {
+        handleScanProduct(match);
+      }
+      return;
+    }
+
+    setToastHint(`Looking up barcode ${code} via RetailerAPI...`);
+    const externalProduct = await fetchExternalProductByBarcode(code);
+    setToastHint(DEFAULT_HINT);
+
+    if (externalProduct) {
+      await addNewProduct(externalProduct);
+      handleScanProduct(externalProduct);
+    } else {
+      setDetectionModalProduct(null);
+      setNotFoundCode(code);
+    }
+  };
+
+  /** Called for every barcode the live camera decodes. */
+  const handleCameraDetection = (code: string) => {
+    if (modalOpenRef.current) return;
+    const now = Date.now();
+    const last = lastScanRef.current;
+    if (last && last.code === code && now - last.at < 4000) return;
+    lastScanRef.current = { code, at: now };
+
+    navigator.vibrate?.(80);
+    setTargetAcquired(true);
+    window.clearTimeout(targetTimerRef.current);
+    targetTimerRef.current = window.setTimeout(() => setTargetAcquired(false), 2000);
+    handleBarcodeResult(code);
+  };
+
+  // Keep the latest handler available to the long-lived scan loop
+  const cameraDetectionRef = useRef(handleCameraDetection);
+  cameraDetectionRef.current = handleCameraDetection;
+
+  // Start the camera and continuously decode barcodes from the live feed
+  useEffect(() => {
+    const support = cameraSupportStatus();
+    if (support !== 'ok') {
+      setCameraStatus(support);
+      return;
+    }
+    const video = videoRef.current;
+    if (!video) return;
+
+    let cancelled = false;
+    let stream: MediaStream | null = null;
+    let loopTimer: number | undefined;
+    const canvas = document.createElement('canvas');
+    setCameraStatus('starting');
+
+    const size = { width: { ideal: 1920 }, height: { ideal: 1080 } };
+    const constraints: MediaStreamConstraints = {
+      audio: false,
+      video: selectedDeviceId
+        ? { deviceId: { exact: selectedDeviceId }, ...size }
+        : { facingMode: { ideal: 'environment' }, ...size },
+    };
+
+    const start = async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+        if (cancelled) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        streamRef.current = stream;
+        video.srcObject = stream;
+        await video.play().catch(() => undefined);
+        if (cancelled) return;
+
+        const track = stream.getVideoTracks()[0];
+        const caps = (track.getCapabilities?.() ?? {}) as MediaTrackCapabilities & {
+          zoom?: { min: number; max: number };
+          torch?: boolean;
+          focusMode?: string[];
+        };
+        // Ask for continuous autofocus where supported (sharper barcodes)
+        if (caps.focusMode?.includes('continuous')) {
+          track.applyConstraints({ advanced: [{ focusMode: 'continuous' } as MediaTrackConstraintSet] }).catch(() => undefined);
+        }
+        setZoomRange(caps.zoom && caps.zoom.max > caps.zoom.min ? { min: caps.zoom.min, max: caps.zoom.max } : null);
+        setTorchSupported(!!caps.torch);
+        const settings = track.getSettings();
+        setResolution(settings.height ? `${settings.height}p` : null);
+        setCameraStatus('active');
+
+        // Device labels are only available after permission is granted
+        BrowserMultiFormatReader.listVideoInputDevices()
+          .then((devices) => !cancelled && setVideoDevices(devices))
+          .catch(() => undefined);
+
+        // Decode loop
+        let attempt = 0;
+        const scan = async () => {
+          if (cancelled) return;
+          try {
+            const code = await decodeVideoFrame(video, getReader(), canvas, attempt++);
+            if (code && !cancelled) cameraDetectionRef.current(code);
+          } catch (err) {
+            console.warn('Barcode decode error:', err);
+          }
+          if (!cancelled) loopTimer = window.setTimeout(scan, 100);
+        };
+        scan();
+      } catch (err: unknown) {
+        if (cancelled) return;
+        const name = (err as { name?: string })?.name;
+        console.warn('Camera unavailable:', err);
+        if (name === 'NotAllowedError' || name === 'SecurityError') setCameraStatus('denied');
+        else if (name === 'NotFoundError' || name === 'OverconstrainedError') setCameraStatus('no-camera');
+        else setCameraStatus('error');
+      }
+    };
+    start();
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(loopTimer);
+      stream?.getTracks().forEach((t) => t.stop());
+      if (video.srcObject === stream) video.srcObject = null;
+      if (streamRef.current === stream) streamRef.current = null;
+      setTorchOn(false);
+      setZoomLevel('1x');
+    };
+  }, [selectedDeviceId, cameraRetryKey]);
+
+  useEffect(() => () => window.clearTimeout(targetTimerRef.current), []);
+
+  const getVideoTrack = () => streamRef.current?.getVideoTracks()[0];
+
+  const handleToggleTorch = async () => {
+    const track = getVideoTrack();
+    if (!track || !torchSupported) {
+      setToastHint('Flashlight is not supported by this camera');
+      return;
+    }
+    try {
+      await track.applyConstraints({ advanced: [{ torch: !torchOn } as MediaTrackConstraintSet] });
+      setTorchOn(!torchOn);
+    } catch {
+      setToastHint('Could not toggle the flashlight');
+    }
+  };
+
+  const handleZoom = async (level: '1x' | '2x' | '3x') => {
+    const track = getVideoTrack();
+    if (!track || !zoomRange) {
+      setToastHint('Zoom is not supported by this camera');
+      return;
+    }
+    const zoom = Math.min(Math.max(ZOOM_FACTORS[level], zoomRange.min), zoomRange.max);
+    try {
+      await track.applyConstraints({ advanced: [{ zoom } as MediaTrackConstraintSet] });
+      setZoomLevel(level);
+    } catch {
+      setToastHint('Could not change zoom');
+    }
+  };
+
+  /** Decodes the current camera frame (tries normal and contrast-boosted crops). */
+  const handleCaptureFrame = async () => {
+    const video = videoRef.current;
+    if (!video || !video.videoWidth) {
+      setToastHint('Camera is not ready yet — try again in a moment');
+      return;
+    }
+    const canvas = document.createElement('canvas');
+    const reader = getReader();
+    const code =
+      (await decodeVideoFrame(video, reader, canvas, 0)) ??
+      (await decodeVideoFrame(video, reader, canvas, 1)) ??
+      (await decodeVideoFrame(video, reader, canvas, 2)) ??
+      (await decodeVideoFrame(video, reader, canvas, 3));
+    if (code) {
+      lastScanRef.current = { code, at: Date.now() };
+      handleBarcodeResult(code);
+    } else {
+      setToastHint('No barcode found — hold it 20–30cm away so it is sharp, in good light');
+    }
+  };
+
+  const handleManualSearch = async (codeToSearch?: string) => {
     const code = (codeToSearch || manualCode).trim();
     if (!code || !/^\d{8,14}$/.test(code)) {
       setManualError('Please enter a valid numeric 8 to 14 digit barcode.');
       return;
     }
     setManualError('');
-    const match = products.find((p) => p.barcode === code) || {
-      ...products[0],
-      barcode: code,
-      name: `Manual Indexed Product (${code})`,
-    };
-    handleScanProduct(match);
+    const match = findProductByBarcode(products, code);
+    if (match) {
+      if (isPlaceholderProductImage(match.image)) {
+        const betterImage = await resolveBestProductImage(match);
+        const enriched = { ...match, image: betterImage };
+        await updateProduct(enriched);
+        handleScanProduct(enriched);
+      } else {
+        handleScanProduct(match);
+      }
+      return;
+    }
+
+    setToastHint(`Looking up barcode ${code} via RetailerAPI...`);
+    const externalProduct = await fetchExternalProductByBarcode(code);
+    setToastHint(DEFAULT_HINT);
+
+    if (externalProduct) {
+      await addNewProduct(externalProduct);
+      handleScanProduct(externalProduct);
+    } else {
+      setManualError(`No product with barcode ${code} was found in local catalog or RetailerAPI.`);
+    }
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setToastHint(`Parsing ${file.name}...`);
-      setTimeout(() => {
-        setToastHint('Hold barcode steady 15–20cm from camera lens');
-        handleScanProduct(products[0]);
-      }, 700);
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-selecting the same file
+    if (!file) return;
+
+    setIsDecodingFile(true);
+    setToastHint(`Reading barcode from ${file.name}...`);
+    const url = URL.createObjectURL(file);
+    try {
+      const code = await decodeImageUrl(url, getReader());
+      if (code) {
+        setToastHint(DEFAULT_HINT);
+        handleBarcodeResult(code);
+      } else {
+        setToastHint('No barcode detected in that image — try a sharper, closer photo');
+      }
+    } catch {
+      setToastHint('No barcode detected in that image — try a sharper, closer photo');
+    } finally {
+      URL.revokeObjectURL(url);
+      setIsDecodingFile(false);
     }
   };
 
@@ -104,13 +352,31 @@ export const ScannerScreen: React.FC = () => {
             </span>
           </div>
 
-          <div className="flex items-center gap-2 bg-[#e0e7ff] px-3.5 py-1.5 rounded-full shadow-xs">
+          <div
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full shadow-xs ${
+              cameraActive ? 'bg-[#e0e7ff]' : cameraStatus === 'starting' ? 'bg-slate-100' : 'bg-[#fff1f2]'
+            }`}
+          >
             <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#5379EE] opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#4338ca]"></span>
+              {cameraActive && (
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#5379EE] opacity-75"></span>
+              )}
+              <span
+                className={`relative inline-flex rounded-full h-2 w-2 ${
+                  cameraActive ? 'bg-[#4338ca]' : cameraStatus === 'starting' ? 'bg-slate-400' : 'bg-[#e11d48]'
+                }`}
+              ></span>
             </span>
-            <span className="font-mono-tech text-[10px] sm:text-xs text-[#4338ca] font-bold uppercase tracking-wider">
-              Live Engine: EAN-13 / UPC-A / OCR v4.2 Ready
+            <span
+              className={`font-mono-tech text-[10px] sm:text-xs font-bold uppercase tracking-wider ${
+                cameraActive ? 'text-[#4338ca]' : cameraStatus === 'starting' ? 'text-[#64748b]' : 'text-[#e11d48]'
+              }`}
+            >
+              {cameraActive
+                ? 'Live Scanner: EAN-13 / UPC-A / EAN-8 Active'
+                : cameraStatus === 'starting'
+                ? 'Starting Camera...'
+                : 'Camera Offline — Upload or Manual Entry'}
             </span>
           </div>
         </div>
@@ -171,33 +437,54 @@ export const ScannerScreen: React.FC = () => {
               <div className="bg-[#0f172a]/85 backdrop-blur-md px-4 py-2.5 flex items-center justify-between z-20 border-b border-white/5">
                 <div className="flex items-center gap-2 text-[#f1f5f9] font-mono-tech text-xs">
                   <span className="material-symbols-outlined text-[#38bdf8] text-sm animate-pulse">videocam</span>
-                  <span>Sensor Lens (1080p, 60fps)</span>
+                  <span>{cameraActive ? `Live Camera${resolution ? ` (${resolution})` : ''}` : 'Camera Offline'}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 rounded-full bg-white/10 text-white font-mono-tech text-[10px]">ISO AUTO</span>
-                  <span className="px-2 py-0.5 rounded-full bg-[#5379EE]/30 text-[#93c5fd] font-mono-tech text-[10px]">
-                    AI ALIGNED
+                  <span className="px-2 py-0.5 rounded-full bg-white/10 text-white font-mono-tech text-[10px]">
+                    {scanMode === 'barcode' ? 'BARCODE' : 'LABEL'}
                   </span>
+                  {cameraActive && (
+                    <span className="px-2 py-0.5 rounded-full bg-[#5379EE]/30 text-[#93c5fd] font-mono-tech text-[10px]">
+                      AUTO-DETECT
+                    </span>
+                  )}
                 </div>
               </div>
 
               {/* Viewfinder Video / Simulation Canvas */}
               <div className="relative w-full aspect-video bg-black flex items-center justify-center overflow-hidden group select-none">
-                {/* Real Video element if permission granted */}
+                {/* Live camera feed (barcodes are decoded from this element) */}
                 <video
                   ref={videoRef}
                   playsInline
                   muted
-                  className={`absolute inset-0 w-full h-full object-cover ${cameraActive ? 'block' : 'hidden'}`}
+                  className={`absolute inset-0 w-full h-full object-cover ${cameraActive ? 'opacity-100' : 'opacity-0'}`}
                 />
 
-                {/* Simulated Realistic Food Packaging Background if camera inactive */}
+                {/* Background image + status message if camera inactive */}
                 {!cameraActive && (
                   <img
                     src="https://images.unsplash.com/photo-1590080875515-8a3a8dc5735e?w=1000&auto=format&fit=crop&q=80"
-                    alt="Packaging Scan Simulation"
-                    className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-700 pointer-events-none"
+                    alt="Camera unavailable"
+                    className="absolute inset-0 w-full h-full object-cover opacity-30 pointer-events-none"
                   />
+                )}
+                {!cameraActive && (
+                  <div className="absolute inset-x-0 bottom-6 z-20 flex flex-col items-center gap-2 px-6 text-center">
+                    <span className="text-xs text-white/90 max-w-sm">
+                      {cameraStatus === 'starting'
+                        ? 'Requesting camera access...'
+                        : CAMERA_STATUS_MESSAGES[cameraStatus]}
+                    </span>
+                    {(cameraStatus === 'denied' || cameraStatus === 'error' || cameraStatus === 'no-camera') && (
+                      <button
+                        onClick={() => setCameraRetryKey((k) => k + 1)}
+                        className="h-8 px-4 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white font-mono-tech text-xs font-bold transition-all"
+                      >
+                        Retry Camera
+                      </button>
+                    )}
+                  </div>
                 )}
 
                 {/* Vignette Shadow */}
@@ -222,11 +509,13 @@ export const ScannerScreen: React.FC = () => {
                     </span>
                   </div>
 
-                  {/* Target Acquired Tag */}
-                  <div className="absolute bottom-2 right-2 bg-[#0f172a]/90 backdrop-blur-md px-2 py-0.5 rounded-md flex items-center gap-1.5 shadow-md">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#38bdf8] animate-ping"></span>
-                    <span className="font-mono-tech text-[10px] text-[#e0f2fe] uppercase font-bold">Target Acquired</span>
-                  </div>
+                  {/* Target Acquired Tag (shown briefly after a successful decode) */}
+                  {targetAcquired && (
+                    <div className="absolute bottom-2 right-2 bg-[#0f172a]/90 backdrop-blur-md px-2 py-0.5 rounded-md flex items-center gap-1.5 shadow-md">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#38bdf8] animate-ping"></span>
+                      <span className="font-mono-tech text-[10px] text-[#e0f2fe] uppercase font-bold">Target Acquired</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Floating Hint Toast */}
@@ -242,30 +531,41 @@ export const ScannerScreen: React.FC = () => {
                 <div className="flex items-center gap-2 flex-1 min-w-[200px]">
                   <div className="relative flex-1">
                     <select
-                      className="w-full h-9 pl-3 pr-8 rounded-full bg-[#f1f5f9] text-[#0f172a] text-xs font-semibold appearance-none outline-none cursor-pointer"
-                      onChange={(e) => setToastHint(`Switched to: ${e.target.value}`)}
+                      className="w-full h-9 pl-3 pr-8 rounded-full bg-[#f1f5f9] text-[#0f172a] text-xs font-semibold appearance-none outline-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                      value={selectedDeviceId ?? ''}
+                      disabled={videoDevices.length === 0}
+                      onChange={(e) => setSelectedDeviceId(e.target.value || undefined)}
                     >
-                      <option>High-Resolution Sensor (Built-in)</option>
-                      <option>Wide Angle Food Scanner</option>
-                      <option>Macro Ingredient Lens</option>
+                      <option value="">Default Camera (rear if available)</option>
+                      {videoDevices.map((device, i) => (
+                        <option key={device.deviceId} value={device.deviceId}>
+                          {device.label || `Camera ${i + 1}`}
+                        </option>
+                      ))}
                     </select>
                     <span className="material-symbols-outlined absolute right-2.5 top-2 text-[#64748b] pointer-events-none text-base">
                       expand_more
                     </span>
                   </div>
-                  <span className="px-2.5 py-1 rounded-full bg-[#f1f5f9] text-[#0f172a] font-mono-tech text-xs font-bold">
-                    1080p
-                  </span>
+                  {resolution && (
+                    <span className="px-2.5 py-1 rounded-full bg-[#f1f5f9] text-[#0f172a] font-mono-tech text-xs font-bold">
+                      {resolution}
+                    </span>
+                  )}
                 </div>
 
                 {/* Right: Zoom & Flash Controls & Snap */}
                 <div className="flex items-center gap-2">
-                  <div className="flex items-center bg-[#f1f5f9] p-0.5 rounded-full">
+                  <div
+                    className={`flex items-center bg-[#f1f5f9] p-0.5 rounded-full ${zoomRange ? '' : 'opacity-50'}`}
+                    title={zoomRange ? 'Camera zoom' : 'Zoom is not supported by this camera'}
+                  >
                     {(['1x', '2x', '3x'] as const).map((z) => (
                       <button
                         key={z}
-                        onClick={() => setZoomLevel(z)}
-                        className={`px-2.5 py-1 rounded-full font-mono-tech text-[11px] font-bold transition-all ${
+                        disabled={!zoomRange}
+                        onClick={() => handleZoom(z)}
+                        className={`px-2.5 py-1 rounded-full font-mono-tech text-[11px] font-bold transition-all disabled:cursor-not-allowed ${
                           zoomLevel === z ? 'bg-white text-[#0f172a] shadow-xs' : 'text-[#64748b] hover:text-[#0f172a]'
                         }`}
                       >
@@ -275,8 +575,10 @@ export const ScannerScreen: React.FC = () => {
                   </div>
 
                   <button
-                    onClick={() => setTorchOn(!torchOn)}
-                    className={`h-9 px-3 rounded-full font-mono-tech text-xs font-bold flex items-center gap-1 transition-all ${
+                    onClick={handleToggleTorch}
+                    disabled={!torchSupported}
+                    title={torchSupported ? 'Toggle flashlight' : 'Flashlight is not supported by this camera'}
+                    className={`h-9 px-3 rounded-full font-mono-tech text-xs font-bold flex items-center gap-1 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                       torchOn ? 'bg-[#5379EE] text-white' : 'bg-[#f1f5f9] text-[#64748b] hover:text-[#0f172a]'
                     }`}
                   >
@@ -285,9 +587,10 @@ export const ScannerScreen: React.FC = () => {
                   </button>
 
                   <button
-                    onClick={() => handleScanProduct(products[0])}
-                    className="h-9 w-9 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white flex items-center justify-center shadow-md active:scale-95 transition-all"
-                    title="Capture Frame"
+                    onClick={handleCaptureFrame}
+                    disabled={!cameraActive}
+                    className="h-9 w-9 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white flex items-center justify-center shadow-md active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Scan current frame"
                   >
                     <span className="material-symbols-outlined text-lg">camera</span>
                   </button>
@@ -302,7 +605,9 @@ export const ScannerScreen: React.FC = () => {
             >
               <div className="flex flex-col sm:flex-row items-center gap-5">
                 <div className="w-14 h-14 rounded-2xl bg-[#EEF2FF] flex items-center justify-center text-[#5379EE] shrink-0 group-hover:scale-105 transition-transform">
-                  <span className="material-symbols-outlined text-3xl">cloud_upload</span>
+                  <span className={`material-symbols-outlined text-3xl ${isDecodingFile ? 'animate-spin' : ''}`}>
+                    {isDecodingFile ? 'progress_activity' : 'cloud_upload'}
+                  </span>
                 </div>
                 <div className="flex-1 text-center sm:text-left">
                   <div className="flex items-center justify-center sm:justify-start gap-2">
@@ -312,8 +617,7 @@ export const ScannerScreen: React.FC = () => {
                     </span>
                   </div>
                   <p className="text-xs text-[#64748b] mt-1">
-                    Drag and drop food package photos here (PNG, JPG, HEIC up to 25MB) to scan barcode or OCR label
-                    verbatim.
+                    Choose a clear, close-up photo of the package barcode (PNG, JPG, or WEBP) to decode it.
                   </p>
                 </div>
                 <button
@@ -660,6 +964,51 @@ export const ScannerScreen: React.FC = () => {
                 className="px-5 h-11 rounded-full bg-slate-100 hover:bg-slate-200 text-[#0f172a] font-mono-tech text-xs font-bold transition-colors"
               >
                 Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Barcode decoded but not in the product database */}
+      {notFoundCode && (
+        <div className="fixed inset-0 z-50 bg-[#0f172a]/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white max-w-md w-full rounded-3xl shadow-2xl p-6 flex flex-col gap-4 border border-slate-100">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-full flex items-center justify-center bg-[#fffbeb] text-[#d97706]">
+                  <span className="material-symbols-outlined text-lg">search_off</span>
+                </div>
+                <div>
+                  <span className="font-mono-tech text-[10px] text-[#64748b] uppercase">Barcode Detected</span>
+                  <h3 className="text-sm font-bold text-[#0f172a]">Product Not in Database</h3>
+                </div>
+              </div>
+              <button
+                onClick={() => setNotFoundCode(null)}
+                className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-[#64748b] hover:text-[#0f172a]"
+              >
+                <span className="material-symbols-outlined text-base">close</span>
+              </button>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-[#fffbeb] text-[#92400e] text-xs leading-relaxed">
+              We read the barcode, but no product with this code exists in the IngreGuide database yet, so its
+              ingredients and allergens can't be checked. Read the package label carefully before eating.
+            </div>
+
+            <div className="flex justify-between text-xs text-[#64748b]">
+              <span>Barcode Scanned:</span>
+              <span className="font-mono-tech font-bold text-[#0f172a]">{notFoundCode}</span>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => setNotFoundCode(null)}
+                className="flex-1 h-11 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white font-mono-tech text-xs font-bold transition-all flex items-center justify-center gap-1 shadow-sm"
+              >
+                <span className="material-symbols-outlined text-sm">barcode_scanner</span>
+                <span>Scan Another</span>
               </button>
             </div>
           </div>

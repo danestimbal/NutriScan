@@ -31,7 +31,6 @@ export const Header: React.FC = () => {
   const navItems: { tab: NavigationTab; label: string }[] = [
     { tab: 'dashboard', label: 'Dashboard' },
     { tab: 'allergen-radar', label: 'Allergen Radar' },
-    { tab: 'scanner', label: 'Scanner' },
     { tab: 'product-analysis', label: 'Product Analysis' },
     { tab: 'ingredient-clarity', label: 'Ingredient Clarity' },
   ];
@@ -41,7 +40,8 @@ export const Header: React.FC = () => {
       <div className="h-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
         {/* Brand / Logo (matching Figure 2 & Figure 3) */}
         <div
-          onClick={() => setActiveTab('dashboard')}
+          onClick={() => setActiveTab('auth')}
+          title="View IngreGuide Landing Page"
           className="flex items-center gap-3 cursor-pointer select-none shrink-0"
         >
           {/* Framed Scanner Logo Emblem with Leaf & Barcode */}
@@ -143,26 +143,28 @@ export const Header: React.FC = () => {
           )}
         </div>
 
-        {/* Navigation Tabs (Desktop matching Figure 3 Icons + Labels) */}
+        {/* Navigation Tabs (Desktop) */}
         <nav className="hidden lg:flex items-center gap-1">
           {navItems.map((item) => {
             const isActive = activeTab === item.tab;
+            const isHome = item.tab === 'dashboard';
             return (
               <button
                 key={item.tab}
                 onClick={() => setActiveTab(item.tab)}
-                className={`font-sans text-xs px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5 ${
+                title={item.label}
+                aria-label={item.label}
+                className={`font-sans text-xs ${isHome ? 'p-2' : 'px-3.5 py-1.5'} rounded-full transition-all whitespace-nowrap cursor-pointer inline-flex items-center justify-center ${
                   isActive
                     ? 'bg-white text-[#4368dd] font-bold shadow-xs'
-                    : 'text-white/85 hover:text-white hover:bg-white/10 font-semibold'
+                    : 'text-white/90 hover:text-white hover:bg-white/10 font-semibold'
                 }`}
               >
-                {item.tab === 'dashboard' && <span className="material-symbols-outlined text-base">home</span>}
-                {item.tab === 'allergen-radar' && <span className="material-symbols-outlined text-base">eco</span>}
-                {item.tab === 'scanner' && <span className="material-symbols-outlined text-base">qr_code_scanner</span>}
-                {item.tab === 'product-analysis' && <span className="material-symbols-outlined text-base">inventory_2</span>}
-                {item.tab === 'ingredient-clarity' && <span className="material-symbols-outlined text-base">visibility</span>}
-                <span>{item.label}</span>
+                {isHome ? (
+                  <span className="material-symbols-outlined text-lg leading-none">home</span>
+                ) : (
+                  <span>{item.label}</span>
+                )}
               </button>
             );
           })}
@@ -170,9 +172,6 @@ export const Header: React.FC = () => {
 
         {/* Action Controls & Profile Avatar */}
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* PWA Install Button */}
-          <PWAInstallButton />
-
           {/* Admin shortcut button */}
           <button
             onClick={() => setActiveTab('admin')}
@@ -190,16 +189,24 @@ export const Header: React.FC = () => {
           <div className="relative">
             <button
               onClick={() => setShowUserMenu(!showUserMenu)}
-              className="flex items-center gap-1.5 p-1 rounded-full hover:bg-white/15 transition-colors border border-white/30"
+              className="flex items-center gap-1.5 p-1 rounded-full hover:bg-white/15 transition-colors border border-white/30 cursor-pointer"
             >
-              <img
-                src={
-                  userProfile.photoURL ||
-                  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80'
-                }
-                alt="Profile"
-                className="w-8 h-8 rounded-full object-cover ring-2 ring-white/60"
-              />
+              {userProfile.photoURL && !userProfile.photoURL.includes('photo-1494790108377') ? (
+                <img
+                  src={userProfile.photoURL}
+                  alt="Profile"
+                  className="w-8 h-8 rounded-full object-cover ring-2 ring-white/60"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-white text-[#5379EE] font-black text-xs flex items-center justify-center ring-2 ring-white/60 uppercase">
+                  {(userProfile.displayName && userProfile.displayName !== 'Sarah Chen'
+                    ? userProfile.displayName
+                    : userProfile.email || 'G'
+                  )
+                    .trim()
+                    .charAt(0)}
+                </div>
+              )}
               <span className="material-symbols-outlined text-white text-base hidden sm:inline">
                 expand_more
               </span>
@@ -209,8 +216,16 @@ export const Header: React.FC = () => {
             {showUserMenu && (
               <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-white shadow-2xl border border-slate-100 p-2 z-50 animate-in fade-in slide-in-from-top-2">
                 <div className="px-3 py-2 border-b border-slate-100">
-                  <p className="text-xs font-bold text-[#0f172a]">{userProfile.displayName}</p>
-                  <p className="text-[11px] text-[#64748b] truncate">{userProfile.email}</p>
+                  <p className="text-xs font-bold text-[#0f172a]">
+                    {userProfile.displayName && userProfile.displayName !== 'Sarah Chen'
+                      ? userProfile.displayName
+                      : userProfile.email
+                      ? userProfile.email.split('@')[0]
+                      : 'Guest User'}
+                  </p>
+                  {userProfile.email && userProfile.email !== 'sarah.chen@nutrition-lab.com' && (
+                    <p className="text-[11px] text-[#64748b] truncate">{userProfile.email}</p>
+                  )}
                   <span className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#e0e7ff] text-[#4338ca] text-[10px] font-bold">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#5379EE]"></span>
                     Bio-Shield Active
@@ -237,6 +252,7 @@ export const Header: React.FC = () => {
                     <span className="material-symbols-outlined text-sm text-[#5379EE]">radar</span>
                     Edit Allergen Radar
                   </button>
+                  <PWAInstallButton variant="menu" />
                   <button
                     onClick={() => {
                       setActiveTab('admin');

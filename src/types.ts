@@ -25,6 +25,14 @@ export interface UserAllergenProfile {
   healthGoals?: string[];
   profileCompleted?: boolean;
   lastSynced?: string;
+  intakeHistory?: DailyNutritionalIntake[];
+  savedProductIds?: string[];
+  researchMetrics?: {
+    trialCount: number;
+    successfulScans: number;
+    completedTasks: number;
+    retrievalTimes: number[];
+  };
 }
 
 export interface IngredientAnalysisItem {

@@ -16,10 +16,11 @@ import { OnboardingProfileScreen } from './screens/OnboardingProfileScreen';
 
 const MainContent: React.FC = () => {
   const { activeTab, setActiveTab } = useApp();
+  const isLanding = activeTab === 'auth';
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#f9f9ff] text-[#111c2d]">
-      <Header />
+    <div className="flex flex-col min-h-screen bg-[#f9f9ff] text-[#1e293b]">
+      {!isLanding && <Header />}
       <PushTakeoverModal />
       <OfflineIndicator />
 
@@ -35,31 +36,37 @@ const MainContent: React.FC = () => {
       </main>
 
       {/* Global Footer */}
-      <footer className="w-full bg-[#f0f3ff] border-t border-[#dae2fd]/60 py-6 mb-16 lg:mb-0">
+      <footer
+        className={`w-full bg-[#f0f3ff] border-t border-[#dae2fd]/60 py-6 text-[#64748b] ${
+          !isLanding ? 'mb-16 lg:mb-0' : ''
+        }`}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3">
-            <span className="font-extrabold text-base text-[#5379EE]">IngreGuide</span>
-            <span className="text-xs text-[#64748b]">
-              • &quot;Read with Sight, Choose What's Right&quot; | Science Investigatory Project (2026–2027) • RA 10173 &amp; WCAG 2.2
+            <span className="font-extrabold text-base text-[#3b5bdb]">
+              Ingre<span className="text-[#5379EE]">Guide</span>
+            </span>
+            <span className="text-xs">
+              • &quot;Read with Sight, Choose What&apos;s Right&quot; | Science Investigatory Project (2026–2027) • RA 10173 &amp; WCAG 2.2
             </span>
           </div>
 
-          <div className="flex items-center gap-6 font-mono-tech text-xs text-[#64748b]">
+          <div className="flex items-center gap-6 font-mono-tech text-xs">
             <button
               onClick={() => setActiveTab('auth')}
-              className="hover:text-[#0f172a] transition-colors"
+              className="hover:text-[#5379EE] transition-colors cursor-pointer"
             >
               Public Portal
             </button>
             <button
               onClick={() => setActiveTab('ingredient-clarity')}
-              className="hover:text-[#0f172a] transition-colors"
+              className="hover:text-[#5379EE] transition-colors cursor-pointer"
             >
               E-Codes Index
             </button>
             <button
               onClick={() => setActiveTab('admin')}
-              className="hover:text-[#0f172a] transition-colors font-bold text-[#5379EE]"
+              className="transition-colors font-bold text-[#5379EE] hover:underline cursor-pointer"
             >
               Admin Console
             </button>
@@ -68,7 +75,7 @@ const MainContent: React.FC = () => {
       </footer>
 
       {/* Mobile Bottom Navigation */}
-      <MobileNav />
+      {!isLanding && <MobileNav />}
     </div>
   );
 };

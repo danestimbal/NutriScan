@@ -21,7 +21,15 @@ export async function seedDatabaseIfEmpty(force = false): Promise<SeedProgressRe
     const existingSnap = await getDocs(productsColl);
     const existingCount = existingSnap.size;
 
-    if (!force && existingCount >= 50) {
+    // Check if any seeded product in Firestore still has a stale/mismatched image URL compared to comprehensiveSeedProducts
+    const seedImageMap = new Map(comprehensiveSeedProducts.map((p) => [p.id, p.image]));
+    const hasOutdatedSeedImages = existingSnap.docs.some((docSnap) => {
+      const data = docSnap.data() as FoodProduct;
+      const expectedImage = seedImageMap.get(data.id);
+      return expectedImage && data.image !== expectedImage;
+    });
+
+    if (!force && existingCount >= 50 && !hasOutdatedSeedImages) {
       return {
         productsSeeded: 0,
         policiesSeeded: 0,

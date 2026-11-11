@@ -10,7 +10,18 @@ export const AllergenRadarScreen: React.FC = () => {
     removeFromWatchlist,
     toggleSentrySetting,
     updateUserProfile,
+    scanLogs,
+    products,
   } = useApp();
+
+  const latestHazardScan = scanLogs.find((l) => l.verdict === 'HAZARD' || l.verdict === 'WARNING');
+  const fallbackHazardProduct = products.find((p) => p.allergensDetected.length > 0) || products[0];
+  const alertPreviewTitle = latestHazardScan?.productName || fallbackHazardProduct?.name || 'Flagged Product';
+  const alertPreviewAllergens =
+    latestHazardScan?.allergensMatched?.length
+      ? latestHazardScan.allergensMatched
+      : fallbackHazardProduct?.allergensDetected || ['Peanuts', 'Gluten'];
+  const alertPreviewConfidence = latestHazardScan?.confidence || 99.8;
 
   const [customInput, setCustomInput] = useState('');
   const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
@@ -53,12 +64,8 @@ export const AllergenRadarScreen: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-3">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EEF2FF] text-[#2563EB] font-mono-tech text-xs uppercase font-bold tracking-wider shadow-xs">
-              <span className="w-2 h-2 rounded-full bg-[#5379EE] animate-pulse"></span>
-              Live Engine v4.2 • Active Sentry
-            </span>
             <span className="text-xs text-[#64748b] hidden sm:inline">
-              Profile: <strong className="text-[#0f172a]">{userProfile.displayName}</strong>
+              Profile: <strong className="text-[#0f172a]">{userProfile.displayName || userProfile.email?.split('@')[0] || 'Guest'}</strong>
             </span>
           </div>
         </div>
@@ -66,10 +73,6 @@ export const AllergenRadarScreen: React.FC = () => {
         {/* Header Block */}
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
           <div className="max-w-3xl space-y-1">
-            <div className="inline-flex items-center gap-1.5 font-mono-tech text-xs text-[#5379EE] uppercase font-bold tracking-widest">
-              <span className="material-symbols-outlined text-base">radar</span>
-              <span>Bespoke Bio-Sensory Shield</span>
-            </div>
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#0f172a] tracking-tight">
               Personal Allergen Radar &amp; Sensory Alert Engine
             </h1>
@@ -266,11 +269,13 @@ export const AllergenRadarScreen: React.FC = () => {
                       <div className="font-mono-tech text-[10px] uppercase font-bold text-[#e11d48] tracking-wider mb-0.5">
                         CRITICAL MATCH • INSTANT HAZARD LOCKOUT
                       </div>
-                      <h3 className="text-sm font-bold text-[#0f172a]">“Golden Harvest Crispy Granola”</h3>
+                      <h3 className="text-sm font-bold text-[#0f172a]">“{alertPreviewTitle}”</h3>
                       <p className="text-xs text-[#64748b] mt-0.5">
-                        Contains <span className="font-bold text-[#e11d48] underline">Peanut Flour</span> &amp;{' '}
-                        <span className="font-bold text-[#d97706]">Malted Wheat Extract (Gluten)</span>. Immediate
-                        physiological risk flag for <strong>{userProfile.displayName}</strong>.
+                        Contains{' '}
+                        <span className="font-bold text-[#e11d48] underline">
+                          {alertPreviewAllergens.join(' & ')}
+                        </span>
+                        . Immediate physiological risk flag for <strong>{userProfile.displayName}</strong>.
                       </p>
                     </div>
                   </div>
@@ -278,7 +283,9 @@ export const AllergenRadarScreen: React.FC = () => {
                     <span className="px-3 py-1 rounded-full bg-[#e11d48] text-white font-mono-tech text-[10px] font-bold uppercase tracking-wider">
                       DO NOT INGEST
                     </span>
-                    <span className="font-mono-tech text-[10px] text-[#64748b]">Match Confidence: 99.8%</span>
+                    <span className="font-mono-tech text-[10px] text-[#64748b]">
+                      Match Confidence: {alertPreviewConfidence}%
+                    </span>
                   </div>
                 </div>
               </div>

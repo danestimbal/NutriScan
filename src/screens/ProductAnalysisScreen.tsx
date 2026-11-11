@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { getSmartProductFallbackImage } from '../utils/barcode';
 
 export const ProductAnalysisScreen: React.FC = () => {
-  const { selectedProduct, setSelectedProductId, setActiveTab, userProfile, products } = useApp();
+  const { selectedProduct, setSelectedProductId, setActiveTab, userProfile, products, toggleSavedProduct } = useApp();
   const [activeTab, setActiveAnalysisTab] = useState<'ingredients' | 'nutrition' | 'certifications'>('ingredients');
   const [showBanner, setShowBanner] = useState(true);
-  const [isSaved, setIsSaved] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
@@ -15,6 +15,11 @@ export const ProductAnalysisScreen: React.FC = () => {
 
   const prod = selectedProduct;
   const hasAllergens = prod.allergensDetected.length > 0;
+  const isSaved = (userProfile.savedProductIds || []).includes(prod.id);
+  const activeAllergenNames = userProfile.activeAllergens
+    .filter((a) => a.active)
+    .map((a) => a.name)
+    .join(', ');
 
   return (
     <div className="w-full min-h-screen bg-[#f9f9ff] text-[#111c2d] pb-24 lg:pb-16 pt-20">
@@ -40,7 +45,10 @@ export const ProductAnalysisScreen: React.FC = () => {
                     Severe Hazard Match
                   </span>
                   <span className="text-xs text-[#0f172a]">
-                    Matched Profile: <strong>{userProfile.displayName} (Peanuts, Tree Nuts, Soy, Celiac)</strong>
+                    Matched Profile:{' '}
+                    <strong>
+                      {userProfile.displayName} ({activeAllergenNames || 'Active Radar'})
+                    </strong>
                   </span>
                 </div>
                 <p className="text-xs text-[#93000a] leading-relaxed">
@@ -88,13 +96,6 @@ export const ProductAnalysisScreen: React.FC = () => {
             <span>&gt;</span>
             <span className="text-[#5379EE] font-bold truncate max-w-[200px]">{prod.name}</span>
           </div>
-
-          <div className="flex items-center gap-2">
-            <span className="flex h-2 w-2 rounded-full bg-[#5379EE]"></span>
-            <span className="font-mono-tech text-[10px] uppercase text-[#64748b]">
-              Database Synchronized: Today, 09:42 EST
-            </span>
-          </div>
         </nav>
 
         {/* Product Overview Card */}
@@ -103,7 +104,14 @@ export const ProductAnalysisScreen: React.FC = () => {
             {/* Left: Product Snapshot Frame */}
             <div className="lg:col-span-4 flex flex-col gap-3">
               <div className="relative rounded-2xl bg-slate-50 overflow-hidden aspect-[4/3] flex items-center justify-center border border-slate-100 shadow-inner">
-                <img src={prod.image} alt={prod.name} className="w-full h-full object-cover" />
+                <img
+                  src={prod.image}
+                  alt={prod.name}
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).src = getSmartProductFallbackImage(prod.name, prod.category);
+                  }}
+                  className="w-full h-full object-cover"
+                />
                 <div className="absolute bottom-2.5 left-2.5 bg-[#0f172a]/80 backdrop-blur-md text-white font-mono-tech text-[10px] uppercase px-2.5 py-1 rounded-full flex items-center gap-1">
                   <span className="material-symbols-outlined text-xs text-[#5379EE]">verified</span>
                   <span>Lab Verified Pack</span>
@@ -165,8 +173,8 @@ export const ProductAnalysisScreen: React.FC = () => {
                 </button>
                 <button
                   onClick={() => {
-                    setIsSaved(!isSaved);
-                    showToast(isSaved ? 'Removed from favorites' : 'Saved to your favorites list!');
+                    const nowSaved = toggleSavedProduct(prod.id);
+                    showToast(nowSaved ? 'Saved to your favorites list (Synced to Cloud)!' : 'Removed from favorites');
                   }}
                   className={`h-10 px-4 rounded-full font-mono-tech text-xs font-bold transition-colors flex items-center gap-1.5 ${
                     isSaved ? 'bg-[#EEF2FF] text-[#5379EE]' : 'bg-[#f1f5f9] text-[#0f172a] hover:bg-slate-200'

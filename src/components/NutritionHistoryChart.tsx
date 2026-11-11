@@ -14,6 +14,7 @@ import {
 import {
   generate30DayIntakeHistory,
   calculateIntakeStats,
+  appendIntakeItemToHistory,
   WHO_RECOMMENDED_SUGAR_LIMIT,
   FDA_MAX_SODIUM_LIMIT,
   RECOMMENDED_PROTEIN_TARGET,
@@ -22,21 +23,7 @@ import { DailyNutritionalIntake, IntakeLogItem } from '../types';
 import { useApp } from '../context/AppContext';
 
 export const NutritionHistoryChart: React.FC = () => {
-  const { products } = useApp();
-
-  // Load from localStorage or initialize with 30-day realistic baseline
-  const [historyData, setHistoryData] = useState<DailyNutritionalIntake[]>(() => {
-    try {
-      const saved = localStorage.getItem('ingreguide_intake_history_30d') || localStorage.getItem('nutriscan_intake_history_30d');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch (e) {
-      console.warn('Failed to parse cached intake history:', e);
-    }
-    return generate30DayIntakeHistory();
-  });
+  const { products, intakeHistory: historyData, updateIntakeHistory: persistData } = useApp();
 
   const [timeRange, setTimeRange] = useState<'7' | '14' | '30'>('30');
   const [activeMetrics, setActiveMetrics] = useState<{
@@ -79,16 +66,6 @@ export const NutritionHistoryChart: React.FC = () => {
     return calculateIntakeStats(displayedData);
   }, [displayedData]);
 
-  // Save changes to localStorage
-  const persistData = (newData: DailyNutritionalIntake[]) => {
-    setHistoryData(newData);
-    try {
-      localStorage.setItem('ingreguide_intake_history_30d', JSON.stringify(newData));
-    } catch (err) {
-      console.error('Failed to persist intake history:', err);
-    }
-  };
-
   // Quick preset logger from current catalog
   const handleSelectCatalogItem = (productId: string) => {
     const found = products.find((p) => p.id === productId);
@@ -108,14 +85,10 @@ export const NutritionHistoryChart: React.FC = () => {
     });
   };
 
-  // Add food log to today (the last entry in the 30-day timeline)
+  // Add food log to today (synced to Firestore via persistData)
   const handleAddIntake = (e: React.FormEvent) => {
     e.preventDefault();
     if (!logForm.name.trim()) return;
-
-    const updated = [...historyData];
-    const todayIndex = updated.length - 1;
-    const today = { ...updated[todayIndex] };
 
     const newItem: IntakeLogItem = {
       id: `intake-${Date.now()}`,
@@ -127,13 +100,7 @@ export const NutritionHistoryChart: React.FC = () => {
       time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
     };
 
-    today.items = [newItem, ...(today.items || [])];
-    today.sugar = Math.round((today.sugar + newItem.sugar) * 10) / 10;
-    today.sodium = Math.round(today.sodium + newItem.sodium);
-    today.protein = Math.round((today.protein + newItem.protein) * 10) / 10;
-    today.calories = Math.round(today.calories + (newItem.calories || 0));
-
-    updated[todayIndex] = today;
+    const updated = appendIntakeItemToHistory(historyData, newItem);
     persistData(updated);
 
     // Reset form & close modal
@@ -147,9 +114,9 @@ export const NutritionHistoryChart: React.FC = () => {
     setIsLogModalOpen(false);
   };
 
-  // Reset to initial 30-day baseline
+  // Reset to clean 30-day timeline
   const handleResetBaseline = () => {
-    if (window.confirm('Reset intake timeline to 30-day baseline data?')) {
+    if (window.confirm('Clear all logged meals and reset your 30-day intake timeline to 0?')) {
       const fresh = generate30DayIntakeHistory();
       persistData(fresh);
       setSelectedDayDetail(null);

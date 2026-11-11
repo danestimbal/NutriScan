@@ -1,94 +1,122 @@
-import { DailyNutritionalIntake, IntakeLogItem } from '../types';
+import { DailyNutritionalIntake, IntakeLogItem, FoodProduct, ScanLog } from '../types';
 
 /**
- * Generates 30 days of realistic chronological nutritional intake history
- * ending on the reference date (September 28, 2026).
+ * Generates a clean 30-day chronological nutritional intake timeline ending on today's date,
+ * starting at 0 for unlogged days so a real user account only shows their actual logged/scanned foods.
  */
 export function generate30DayIntakeHistory(): DailyNutritionalIntake[] {
   const result: DailyNutritionalIntake[] = [];
-  const baseDate = new Date('2026-09-28T12:00:00Z');
+  const baseDate = new Date();
 
-  // Baseline templates for common meals
-  const mealPool: IntakeLogItem[] = [
-    { id: 'm1', name: 'Silk Almond Milk & Oats', sugar: 6.5, sodium: 170, protein: 7.2, calories: 210 },
-    { id: 'm2', name: 'Organic Greek Yogurt & Blueberries', sugar: 9.0, sodium: 65, protein: 18.5, calories: 190 },
-    { id: 'm3', name: 'Nordic Seed Crackers & Hummus', sugar: 1.2, sodium: 280, protein: 8.0, calories: 230 },
-    { id: 'm4', name: 'Golden Harvest Granola Snack', sugar: 14.5, sodium: 190, protein: 4.5, calories: 260 },
-    { id: 'm5', name: 'Grilled Wild Salmon & Quinoa', sugar: 2.0, sodium: 420, protein: 34.0, calories: 480 },
-    { id: 'm6', name: 'Lentil Veggie Botanical Bowl', sugar: 4.5, sodium: 540, protein: 22.0, calories: 390 },
-    { id: 'm7', name: 'Artisan Raw Cacao Almond Butter', sugar: 3.8, sodium: 85, protein: 9.5, calories: 250 },
-    { id: 'm8', name: 'Matcha Green Tea Latte', sugar: 8.2, sodium: 110, protein: 4.0, calories: 140 },
-    { id: 'm9', name: 'Avocado & Hemp Heart Toast', sugar: 1.5, sodium: 310, protein: 11.0, calories: 320 },
-    { id: 'm10', name: 'Chia Seed Coconut Pudding', sugar: 5.0, sodium: 95, protein: 6.5, calories: 180 },
-    { id: 'm11', name: 'Roasted Edamame & Sea Salt', sugar: 1.8, sodium: 380, protein: 16.0, calories: 190 },
-    { id: 'm12', name: 'Dark Chocolate 85% Square', sugar: 4.0, sodium: 15, protein: 2.2, calories: 110 }
-  ];
-
-  // Specific 30-day realistic rhythm (simulating weekday health vs weekend variances)
   for (let i = 29; i >= 0; i--) {
     const d = new Date(baseDate);
     d.setDate(d.getDate() - i);
 
-    const isWeekend = d.getDay() === 0 || d.getDay() === 6;
     const dayStr = d.toISOString().split('T')[0];
     const displayDate = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-
-    // Deterministic pseudo-random generation based on day offset
-    const pseudoSeed = (i * 17 + 23) % 100;
-    
-    // Select 3 to 4 items for this day
-    const itemsCount = isWeekend ? 4 : 3;
-    const items: IntakeLogItem[] = [];
-    
-    const startIndex = (i * 2) % mealPool.length;
-    for (let k = 0; k < itemsCount; k++) {
-      const item = mealPool[(startIndex + k) % mealPool.length];
-      items.push({
-        ...item,
-        id: `log-${dayStr}-${k}`,
-        time: k === 0 ? '08:30 AM' : k === 1 ? '01:15 PM' : k === 2 ? '07:45 PM' : '04:10 PM'
-      });
-    }
-
-    // Weekend variance slightly increases sugar/sodium, decreases protein slightly
-    let sugarFactor = isWeekend ? 1.25 : 0.95;
-    let sodiumFactor = isWeekend ? 1.2 : 0.98;
-    let proteinFactor = isWeekend ? 0.92 : 1.05;
-
-    // A couple special spike days (e.g. social dinner or heavy workout)
-    if (i === 18) {
-      // Day 18 (Party/Celebration)
-      sugarFactor = 1.7;
-      sodiumFactor = 1.5;
-    } else if (i === 7) {
-      // Day 7 (Ultra clean training day)
-      proteinFactor = 1.35;
-      sugarFactor = 0.65;
-    }
-
-    const totalSugar = Math.round(items.reduce((sum, it) => sum + it.sugar, 0) * sugarFactor * 10) / 10;
-    const totalSodium = Math.round(items.reduce((sum, it) => sum + it.sodium, 0) * sodiumFactor);
-    const totalProtein = Math.round(items.reduce((sum, it) => sum + it.protein, 0) * proteinFactor * 10) / 10;
-    const totalCalories = Math.round(items.reduce((sum, it) => sum + (it.calories || 200), 0) * 1.05);
 
     result.push({
       date: dayStr,
       displayDate,
       dayIndex: 30 - i,
-      sugar: totalSugar,
-      sodium: totalSodium,
-      protein: totalProtein,
-      calories: totalCalories,
-      items
+      sugar: 0,
+      sodium: 0,
+      protein: 0,
+      calories: 0,
+      items: [],
     });
   }
 
   return result;
 }
 
+/**
+ * Checks whether an intakeHistory array contains the legacy auto-generated mock mealPool items (`log-YYYY-MM-DD-k`).
+ */
+export function isMockSeededIntakeHistory(history?: DailyNutritionalIntake[]): boolean {
+  if (!Array.isArray(history) || history.length === 0) return false;
+  return history.some((day) =>
+    Array.isArray(day.items) && day.items.some((item) => String(item.id || '').startsWith('log-20'))
+  );
+}
+
+/**
+ * Builds a clean 30-day intake timeline and populates today's entry from the user's real scanLogs.
+ */
+export function buildCleanHistoryFromRealScans(
+  scanLogs: ScanLog[],
+  products: FoodProduct[]
+): DailyNutritionalIntake[] {
+  let timeline = generate30DayIntakeHistory();
+  const realScans = scanLogs.filter((s) => !['scan-1', 'scan-2', 'scan-3', 'scan-4', 'scan-5'].includes(s.id));
+
+  for (const log of realScans) {
+    const matched = products.find((p) => p.barcode === log.barcode || p.name === log.productName);
+    if (matched) {
+      const item = productToIntakeItem(matched);
+      item.id = `scan-intake-${log.id}`;
+      item.time = log.timestamp;
+      timeline = appendIntakeItemToHistory(timeline, item);
+    }
+  }
+  return timeline;
+}
+
 export const WHO_RECOMMENDED_SUGAR_LIMIT = 25; // grams / day
 export const FDA_MAX_SODIUM_LIMIT = 2300; // mg / day
 export const RECOMMENDED_PROTEIN_TARGET = 55; // grams / day
+
+/**
+ * Appends a scanned or logged food item to today's intake entry in the 30-day history.
+ */
+export function appendIntakeItemToHistory(
+  history: DailyNutritionalIntake[],
+  newItem: IntakeLogItem
+): DailyNutritionalIntake[] {
+  const base = Array.isArray(history) && history.length > 0 ? [...history] : generate30DayIntakeHistory();
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayDisplay = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const lastIdx = base.length - 1;
+
+  if (base[lastIdx] && base[lastIdx].date === todayStr) {
+    const today = { ...base[lastIdx] };
+    today.items = [newItem, ...(today.items || [])];
+    today.sugar = Math.round((today.sugar + newItem.sugar) * 10) / 10;
+    today.sodium = Math.round(today.sodium + newItem.sodium);
+    today.protein = Math.round((today.protein + newItem.protein) * 10) / 10;
+    today.calories = Math.round(today.calories + (newItem.calories || 0));
+    base[lastIdx] = today;
+    return base;
+  }
+
+  // If the last entry in history is from an earlier date, append a new day entry for today
+  const nextEntry: DailyNutritionalIntake = {
+    date: todayStr,
+    displayDate: todayDisplay,
+    dayIndex: base.length,
+    sugar: Math.round(newItem.sugar * 10) / 10,
+    sodium: Math.round(newItem.sodium),
+    protein: Math.round(newItem.protein * 10) / 10,
+    calories: Math.round(newItem.calories || 0),
+    items: [newItem],
+  };
+  return [...base.slice(-29), nextEntry];
+}
+
+export function productToIntakeItem(product: FoodProduct): IntakeLogItem {
+  const sugarNum = parseFloat(String(product.nutrients?.sugars || '0').replace(/[^0-9.]/g, '')) || 0;
+  const sodiumNum = parseFloat(String(product.nutrients?.sodium || '0').replace(/[^0-9.]/g, '')) || 0;
+  const proteinNum = parseFloat(String(product.nutrients?.protein || '0').replace(/[^0-9.]/g, '')) || 0;
+  return {
+    id: `intake-${Date.now()}`,
+    name: `${product.brand} ${product.name}`.trim(),
+    sugar: sugarNum,
+    sodium: sodiumNum,
+    protein: proteinNum,
+    calories: product.nutrients?.calories || 0,
+    time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+  };
+}
 
 export function calculateIntakeStats(data: DailyNutritionalIntake[]) {
   if (!data || data.length === 0) {
@@ -103,10 +131,26 @@ export function calculateIntakeStats(data: DailyNutritionalIntake[]) {
     };
   }
 
-  const count = data.length;
-  const sumSugar = data.reduce((acc, curr) => acc + curr.sugar, 0);
-  const sumSodium = data.reduce((acc, curr) => acc + curr.sodium, 0);
-  const sumProtein = data.reduce((acc, curr) => acc + curr.protein, 0);
+  // Average over days that actually have logged/scanned intake (or return 0 if none yet)
+  const activeDays = data.filter(
+    (d) => d.sugar > 0 || d.sodium > 0 || d.protein > 0 || d.calories > 0 || (d.items && d.items.length > 0)
+  );
+  if (activeDays.length === 0) {
+    return {
+      avgSugar: 0,
+      avgSodium: 0,
+      avgProtein: 0,
+      totalDays: data.length,
+      sugarThresholdPct: 0,
+      sodiumThresholdPct: 0,
+      proteinGoalPct: 0
+    };
+  }
+
+  const count = activeDays.length;
+  const sumSugar = activeDays.reduce((acc, curr) => acc + curr.sugar, 0);
+  const sumSodium = activeDays.reduce((acc, curr) => acc + curr.sodium, 0);
+  const sumProtein = activeDays.reduce((acc, curr) => acc + curr.protein, 0);
 
   const avgSugar = Math.round((sumSugar / count) * 10) / 10;
   const avgSodium = Math.round(sumSodium / count);

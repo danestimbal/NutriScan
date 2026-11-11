@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { NutritionHistoryChart } from '../components/NutritionHistoryChart';
 import { ResearchMetricsPanel } from '../components/ResearchMetricsPanel';
+import { findProductByBarcode, getSmartProductFallbackImage, isPlaceholderProductImage } from '../utils/barcode';
 
 export const DashboardScreen: React.FC = () => {
   const {
@@ -15,6 +16,66 @@ export const DashboardScreen: React.FC = () => {
 
   const [activeFilter, setActiveFilter] = useState<'all' | 'safe' | 'warnings' | 'severe'>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const matrixScrollRef = React.useRef<HTMLDivElement>(null);
+
+  const scrollMatrix = (direction: 'left' | 'right') => {
+    if (!matrixScrollRef.current) return;
+    const scrollAmount = matrixScrollRef.current.clientWidth * 0.85;
+    matrixScrollRef.current.scrollBy({
+      left: direction === 'left' ? -scrollAmount : scrollAmount,
+      behavior: 'smooth',
+    });
+  };
+
+  // Live Dashboard Stats synced from Firestore scanLogs, userProfile & products
+  const totalScans = scanLogs.length;
+  const warningsFlagged = scanLogs.filter((l) => l.verdict === 'HAZARD' || l.verdict === 'WARNING').length;
+  const safeScansCount = scanLogs.filter((l) => l.verdict === 'SAFE').length;
+  const safeChoiceRate = totalScans > 0 ? Math.round((safeScansCount / totalScans) * 100) : 100;
+  const savedSwapsCount =
+    userProfile.savedProductIds && userProfile.savedProductIds.length > 0
+      ? userProfile.savedProductIds.length
+      : products.filter((p) => Boolean(p.safeAlternative)).length || 3;
+
+  // Recent scanned products derived from Firestore scanLogs first, then catalog fallback
+  const recentScannedProducts = React.useMemo(() => {
+    const seen = new Set<string>();
+    const list = [];
+    for (const log of scanLogs) {
+      const matched = findProductByBarcode(products, log.barcode);
+      if (matched && !seen.has(matched.id)) {
+        seen.add(matched.id);
+        list.push(matched);
+      }
+    }
+    for (const p of products) {
+      if (list.length >= 8) break;
+      if (!seen.has(p.id)) {
+        seen.add(p.id);
+        list.push(p);
+      }
+    }
+    return list;
+  }, [scanLogs, products]);
+
+  // Most recent allergen clash from Firestore-synced scanLogs
+  const latestClashLog = scanLogs.find((l) => l.verdict === 'HAZARD' || l.verdict === 'WARNING');
+  const clashProduct =
+    (latestClashLog && findProductByBarcode(products, latestClashLog.barcode)) ||
+    products.find((p) => p.allergensDetected.length > 0) ||
+    products[0];
+  const clashImage =
+    clashProduct && !isPlaceholderProductImage(clashProduct.image)
+      ? clashProduct.image
+      : getSmartProductFallbackImage(clashProduct?.name || latestClashLog?.productName || '', clashProduct?.category);
+  const clashAllergens =
+    latestClashLog?.allergensMatched?.length
+      ? latestClashLog.allergensMatched
+      : clashProduct?.allergensDetected || [];
+  const cleanSwapName =
+    clashProduct?.safeAlternative?.name ||
+    products.find((p) => p.allergensDetected.length === 0 && p.nutriScore === 'A')?.name ||
+    'Nut-Free Pure Amaranth Bites';
 
   const filteredProducts = products.filter((prod) => {
     // Safety status filter
@@ -26,6 +87,7 @@ export const DashboardScreen: React.FC = () => {
     if (selectedCategory === 'all') return true;
     const catLower = prod.category.toLowerCase();
     if (selectedCategory === 'drinks') return catLower.includes('drink') || catLower.includes('beverage');
+    if (selectedCategory === 'cereal') return catLower.includes('cereal') || catLower.includes('breakfast') || catLower.includes('oat');
     if (selectedCategory === 'snacks') return catLower.includes('snack') || catLower.includes('bar') || catLower.includes('chip') || catLower.includes('confectionery') || catLower.includes('treat');
     if (selectedCategory === 'dairy') return catLower.includes('dairy') || catLower.includes('milk') || catLower.includes('cheese') || catLower.includes('yogurt') || catLower.includes('butter');
     if (selectedCategory === 'bakery') return catLower.includes('bakery') || catLower.includes('bread') || catLower.includes('muffin') || catLower.includes('tortilla');
@@ -36,50 +98,6 @@ export const DashboardScreen: React.FC = () => {
   return (
     <div className="w-full min-h-screen bg-[#f9f9ff] text-[#111c2d] pb-24 lg:pb-16 pt-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
-        {/* Top Greeting Banner & Live Shield */}
-        <div className="relative overflow-hidden rounded-3xl bg-white p-6 sm:p-8 border border-slate-100 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="absolute -right-16 -top-16 w-64 h-64 bg-[#eef2ff] rounded-full blur-3xl pointer-events-none opacity-80"></div>
-          <div className="flex flex-col gap-2 z-10">
-            <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-[#0f172a] tracking-tight">
-                Good morning, {userProfile.displayName}!
-              </h1>
-              <div className="inline-flex items-center gap-1.5 bg-[#e0e7ff] px-3 py-1 rounded-full">
-                <span className="w-2 h-2 rounded-full bg-[#5379EE] animate-ping"></span>
-                <span className="font-mono-tech text-xs text-[#4338ca] font-bold">
-                  Shield Active: {userProfile.activeAllergens.filter((a) => a.active).length} restrictions
-                </span>
-              </div>
-            </div>
-            <p className="text-xs sm:text-sm text-[#64748b]">
-              Peanuts, Gluten, Dairy, and Added Emulsifiers are actively monitored across all your scans.
-            </p>
-          </div>
-          <div className="flex items-center gap-2 sm:gap-3 z-10 flex-wrap">
-            <button
-              onClick={() => setActiveTab('onboarding')}
-              className="inline-flex items-center gap-1.5 bg-[#eef2ff] hover:bg-[#e0e7ff] text-[#5379EE] px-4 py-2 rounded-full font-mono-tech text-xs font-bold transition-all border border-[#dbe4fe]"
-            >
-              <span className="material-symbols-outlined text-base">tune</span>
-              <span>Profile Wizard</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('allergen-radar')}
-              className="inline-flex items-center gap-1.5 bg-[#eef2ff] hover:bg-[#e0e7ff] text-[#5379EE] px-4 py-2 rounded-full font-mono-tech text-xs font-bold transition-all border border-[#dbe4fe]"
-            >
-              <span className="material-symbols-outlined text-base">radar</span>
-              <span>Allergen Radar</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('scanner')}
-              className="inline-flex items-center gap-1.5 bg-[#5379EE] hover:bg-[#4368DD] text-white px-5 py-2 rounded-full font-mono-tech text-xs font-bold transition-all shadow-[0_4px_16px_rgba(83,121,238,0.35)] active:scale-95"
-            >
-              <span className="material-symbols-outlined text-base">qr_code_scanner</span>
-              <span>Quick Scan</span>
-            </button>
-          </div>
-        </div>
-
         {/* Stat Counters Bar */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-white p-5 rounded-2xl border border-slate-100 flex items-center gap-4 shadow-xs">
@@ -87,7 +105,7 @@ export const DashboardScreen: React.FC = () => {
               <span className="material-symbols-outlined text-2xl">barcode_scanner</span>
             </div>
             <div>
-              <span className="text-2xl font-bold text-[#0f172a] block">48</span>
+              <span className="text-2xl font-bold text-[#0f172a] block">{totalScans}</span>
               <span className="font-mono-tech text-[10px] text-[#64748b] uppercase tracking-wider font-semibold">
                 Scans This Month
               </span>
@@ -99,7 +117,7 @@ export const DashboardScreen: React.FC = () => {
               <span className="material-symbols-outlined text-2xl">shield_with_heart</span>
             </div>
             <div>
-              <span className="text-2xl font-bold text-[#e11d48] block">12</span>
+              <span className="text-2xl font-bold text-[#e11d48] block">{warningsFlagged}</span>
               <span className="font-mono-tech text-[10px] text-[#64748b] uppercase tracking-wider font-semibold">
                 Warnings Flagged
               </span>
@@ -111,7 +129,7 @@ export const DashboardScreen: React.FC = () => {
               <span className="material-symbols-outlined text-2xl">verified</span>
             </div>
             <div>
-              <span className="text-2xl font-bold text-[#0f172a] block">98%</span>
+              <span className="text-2xl font-bold text-[#0f172a] block">{safeChoiceRate}%</span>
               <span className="font-mono-tech text-[10px] text-[#64748b] uppercase tracking-wider font-semibold">
                 Safe Choice Rate
               </span>
@@ -123,7 +141,7 @@ export const DashboardScreen: React.FC = () => {
               <span className="material-symbols-outlined text-2xl">swap_calls</span>
             </div>
             <div>
-              <span className="text-2xl font-bold text-[#0f172a] block">3</span>
+              <span className="text-2xl font-bold text-[#0f172a] block">{savedSwapsCount}</span>
               <span className="font-mono-tech text-[10px] text-[#64748b] uppercase tracking-wider font-semibold">
                 Saved Swaps
               </span>
@@ -193,7 +211,7 @@ export const DashboardScreen: React.FC = () => {
             </div>
           </div>
 
-          {/* Card 2: High Alert Allergen Trigger Clash */}
+          {/* Card 2: High Alert Allergen Trigger Clash (Synced to latest hazard/warning scan) */}
           <div className="lg:col-span-5 bg-[#fff1f2] rounded-3xl p-6 sm:p-7 border border-[#ffdad6] flex flex-col justify-between shadow-xs">
             <div className="flex items-start justify-between">
               <div>
@@ -202,28 +220,42 @@ export const DashboardScreen: React.FC = () => {
                   <span className="font-mono-tech text-[10px] uppercase font-bold tracking-wider">High Alert Trigger</span>
                 </div>
                 <h2 className="text-lg font-bold text-[#0f172a]">Recent Allergen Clash Detected</h2>
-                <p className="text-xs text-[#64748b] mt-0.5">Scanned 14 minutes ago at Greenleaf Market.</p>
+                <p className="text-xs text-[#64748b] mt-0.5">
+                  {latestClashLog
+                    ? `Scanned ${latestClashLog.timestamp} • UPC ${latestClashLog.barcode}`
+                    : `Flagged in catalog • UPC ${clashProduct?.barcode || ''}`}
+                </p>
               </div>
               <span className="px-3 py-1 rounded-full bg-[#ffdad6] text-[#93000a] font-mono-tech text-[10px] font-bold uppercase">
-                Severe Trigger
+                {latestClashLog?.verdict === 'WARNING' ? 'Warning Trigger' : 'Severe Trigger'}
               </span>
             </div>
 
             <div className="bg-white p-4 rounded-2xl my-4 border border-[#ffdad6] flex items-center gap-3.5 shadow-xs">
               <img
-                src="https://images.unsplash.com/photo-1517093707577-03f69e6b432a?w=400&auto=format&fit=crop&q=80"
-                alt="Golden Harvest Granola"
-                className="w-14 h-14 rounded-xl object-cover"
+                src={clashImage}
+                alt={clashProduct?.name || latestClashLog?.productName || 'Flagged Product'}
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).src = getSmartProductFallbackImage(
+                    clashProduct?.name || '',
+                    clashProduct?.category
+                  );
+                }}
+                className="w-14 h-14 rounded-xl object-cover shrink-0 bg-slate-50"
               />
               <div className="flex-1 min-w-0">
-                <h3 className="text-xs font-bold text-[#0f172a] truncate">Golden Harvest Honey Oat Crunch</h3>
+                <h3 className="text-xs font-bold text-[#0f172a] truncate">
+                  {clashProduct?.name || latestClashLog?.productName || 'Flagged Product'}
+                </h3>
                 <div className="flex items-center gap-1.5 flex-wrap mt-1">
-                  <span className="px-2 py-0.5 rounded-full bg-[#fff1f2] text-[#e11d48] font-mono-tech text-[10px] font-bold">
-                    Contains Peanut Flour
-                  </span>
-                  <span className="px-2 py-0.5 rounded-full bg-[#fff1f2] text-[#e11d48] font-mono-tech text-[10px] font-bold">
-                    Wheat Gluten
-                  </span>
+                  {clashAllergens.map((allergen, idx) => (
+                    <span
+                      key={idx}
+                      className="px-2 py-0.5 rounded-full bg-[#fff1f2] text-[#e11d48] font-mono-tech text-[10px] font-bold"
+                    >
+                      {allergen}
+                    </span>
+                  ))}
                 </div>
               </div>
             </div>
@@ -233,12 +265,14 @@ export const DashboardScreen: React.FC = () => {
                 <span className="material-symbols-outlined text-[#5379EE] text-base">lightbulb</span>
                 <span className="text-[11px]">
                   Suggested Clean Alternative:{' '}
-                  <strong className="text-[#5379EE]">Nut-Free Pure Amaranth Bites</strong>
+                  <strong className="text-[#5379EE]">{cleanSwapName}</strong>
                 </span>
               </div>
               <button
                 onClick={() => {
-                  setSelectedProductId('prod-roasted-granola');
+                  if (clashProduct) {
+                    setSelectedProductId(clashProduct.id);
+                  }
                   setActiveTab('product-analysis');
                 }}
                 className="px-4 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-[#0f172a] font-mono-tech text-xs font-bold rounded-full transition-colors shadow-xs"
@@ -248,201 +282,6 @@ export const DashboardScreen: React.FC = () => {
             </div>
           </div>
         </div>
-
-        {/* Figure 3: "Welcome Back, User!" Header with Blue Underline */}
-        <div className="pt-2">
-          <h1 className="text-2xl sm:text-3xl font-black text-[#5379EE] tracking-tight underline decoration-4 decoration-[#5379EE] underline-offset-8">
-            Welcome Back, {userProfile.displayName || 'User'}!
-          </h1>
-        </div>
-
-        {/* Figure 3: "— RECENT SCANS —" Carousel with Chevrons */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-black uppercase tracking-wider text-[#475569]">
-              — RECENT SCANS —
-            </h2>
-            <button
-              onClick={() => setActiveTab('scanner')}
-              className="text-xs font-mono-tech text-[#5379EE] hover:underline flex items-center gap-1 font-bold"
-            >
-              <span>Scan New Item</span>
-              <span className="material-symbols-outlined text-sm">arrow_forward</span>
-            </button>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {/* Left Chevron from Figure 3 */}
-            <button
-              onClick={() => {
-                const el = document.getElementById('recent-scans-track');
-                if (el) el.scrollBy({ left: -260, behavior: 'smooth' });
-              }}
-              className="w-10 h-10 rounded-full bg-[#e0e7ff] hover:bg-[#5379EE] text-[#5379EE] hover:text-white flex items-center justify-center transition-colors shrink-0 shadow-xs cursor-pointer"
-              title="Previous recent scans"
-            >
-              <span className="material-symbols-outlined text-2xl">chevron_left</span>
-            </button>
-
-            {/* Horizontal scroll cards */}
-            <div id="recent-scans-track" className="flex-1 flex gap-4 overflow-x-auto pb-2 scrollbar-thin scroll-smooth">
-              {products.length === 0 ? (
-                <div className="py-8 text-center text-sm font-mono-tech text-[#94a3b8] w-full">
-                  NO RECENT SCANS YET...
-                </div>
-              ) : (
-                products.slice(0, 6).map((prod) => {
-                  const hasAllergens = prod.allergensDetected.length > 0;
-                  return (
-                    <div
-                      key={prod.id}
-                      onClick={() => {
-                        setSelectedProductId(prod.id);
-                        setActiveTab('product-analysis');
-                      }}
-                      className="w-64 shrink-0 bg-white rounded-2xl p-3.5 border border-slate-100 shadow-xs hover:shadow-md hover:border-[#5379EE]/50 transition-all cursor-pointer flex flex-col justify-between"
-                    >
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={prod.image}
-                          alt={prod.name}
-                          className="w-14 h-14 rounded-xl object-cover shrink-0 bg-slate-50"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <span className="text-[10px] font-mono-tech text-[#64748b] block uppercase truncate">
-                            {prod.brand}
-                          </span>
-                          <h4 className="text-xs font-bold text-[#0f172a] truncate">{prod.name}</h4>
-                          <div className="flex items-center gap-1.5 mt-1">
-                            <span
-                              className={`px-1.5 py-0.5 rounded text-[10px] font-bold font-mono-tech ${
-                                prod.nutriScore === 'A'
-                                  ? 'bg-[#e0e7ff] text-[#4338ca]'
-                                  : prod.nutriScore === 'B'
-                                  ? 'bg-[#ecfdf5] text-[#059669]'
-                                  : 'bg-[#fef3c7] text-[#d97706]'
-                              }`}
-                            >
-                              Nutri-Score {prod.nutriScore}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="mt-3 pt-2 border-t border-slate-50 flex items-center justify-between text-[11px]">
-                        <span
-                          className={`font-semibold ${
-                            hasAllergens ? 'text-[#e11d48]' : 'text-[#059669]'
-                          }`}
-                        >
-                          {hasAllergens ? `${prod.allergensDetected.length} Allergens` : 'Verified Safe'}
-                        </span>
-                        <span className="text-[#5379EE] font-mono-tech text-[10px]">Inspect &gt;</span>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-
-            {/* Right Chevron from Figure 3 */}
-            <button
-              onClick={() => {
-                const el = document.getElementById('recent-scans-track');
-                if (el) el.scrollBy({ left: 260, behavior: 'smooth' });
-              }}
-              className="w-10 h-10 rounded-full bg-[#e0e7ff] hover:bg-[#5379EE] text-[#5379EE] hover:text-white flex items-center justify-center transition-colors shrink-0 shadow-xs cursor-pointer"
-              title="Next recent scans"
-            >
-              <span className="material-symbols-outlined text-2xl">chevron_right</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Figure 3: "— PRODUCT CATEGORIES —" Carousel with Chevrons */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-black uppercase tracking-wider text-[#475569]">
-              — PRODUCT CATEGORIES —
-            </h2>
-            <span className="text-xs text-[#64748b]">Select to filter catalog</span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {/* Left Chevron */}
-            <button
-              onClick={() => {
-                const el = document.getElementById('categories-track');
-                if (el) el.scrollBy({ left: -220, behavior: 'smooth' });
-              }}
-              className="w-10 h-10 rounded-full bg-[#e0e7ff] hover:bg-[#5379EE] text-[#5379EE] hover:text-white flex items-center justify-center transition-colors shrink-0 shadow-xs cursor-pointer"
-              title="Previous categories"
-            >
-              <span className="material-symbols-outlined text-2xl">chevron_left</span>
-            </button>
-
-            {/* Category Cards matching Figure 3 */}
-            <div id="categories-track" className="flex-1 flex gap-3 overflow-x-auto pb-2 scrollbar-thin scroll-smooth">
-              {[
-                { id: 'all', label: 'ALL ITEMS', subLabel: 'Catalog', icon: 'apps', count: products.length },
-                { id: 'drinks', label: 'DRINKS', subLabel: 'Beverages', icon: 'local_cafe', count: 1 },
-                { id: 'dairy', label: 'DAIRY', subLabel: 'Milks & Cheeses', icon: 'egg_alt', count: 1, isHeroInMockup: true },
-                { id: 'cereal', label: 'CEREAL', subLabel: 'Grains & Oats', icon: 'grain', count: 2 },
-                { id: 'snacks', label: 'SNACKS', subLabel: 'Bars & Chips', icon: 'cookie', count: 2 },
-                { id: 'bakery', label: 'BAKERY', subLabel: 'Breads & Pastry', icon: 'bakery_dining', count: 1 },
-                { id: 'pantry', label: 'PANTRY', subLabel: 'Sauces & Spices', icon: 'kitchen', count: 1 },
-              ].map((cat) => {
-                const isSelected = selectedCategory === cat.id;
-                return (
-                  <button
-                    key={cat.id}
-                    onClick={() => setSelectedCategory(cat.id)}
-                    className={`min-w-[150px] p-4 rounded-2xl border-2 transition-all text-center flex flex-col items-center justify-between cursor-pointer ${
-                      isSelected
-                        ? 'bg-[#5379EE] text-white border-[#5379EE] shadow-lg scale-105 z-10'
-                        : 'bg-white border-slate-200 text-[#0f172a] hover:border-[#5379EE]/50 hover:bg-[#f8fafc]'
-                    }`}
-                  >
-                    <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-2 bg-white/20">
-                      <span
-                        className={`material-symbols-outlined text-3xl ${
-                          isSelected ? 'text-white' : 'text-[#5379EE]'
-                        }`}
-                      >
-                        {cat.icon}
-                      </span>
-                    </div>
-                    <span className="text-xs font-black tracking-wide block uppercase">
-                      {cat.label}
-                    </span>
-                    <span
-                      className={`text-[10px] font-mono-tech mt-0.5 ${
-                        isSelected ? 'text-white/80' : 'text-[#64748b]'
-                      }`}
-                    >
-                      {cat.subLabel}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Right Chevron */}
-            <button
-              onClick={() => {
-                const el = document.getElementById('categories-track');
-                if (el) el.scrollBy({ left: 220, behavior: 'smooth' });
-              }}
-              className="w-10 h-10 rounded-full bg-[#e0e7ff] hover:bg-[#5379EE] text-[#5379EE] hover:text-white flex items-center justify-center transition-colors shrink-0 shadow-xs cursor-pointer"
-              title="Next categories"
-            >
-              <span className="material-symbols-outlined text-2xl">chevron_right</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Nutritional Intake History & 30-Day Trends (Recharts) */}
-        <NutritionHistoryChart />
 
         {/* Main Section: Recent Scans & Product Health Matrix */}
         <div className="space-y-4">
@@ -488,100 +327,134 @@ export const DashboardScreen: React.FC = () => {
             </div>
           </div>
 
-          {/* 4-Column Product Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {filteredProducts.slice(0, 4).map((prod) => {
-              const isHazard = prod.allergensDetected.some((a) =>
-                userProfile.activeAllergens
-                  .filter((ua) => ua.active)
-                  .some((ua) => a.toLowerCase().includes(ua.name.toLowerCase().split(' ')[0]))
-              );
+          {/* Horizontal Scrollable Product Matrix with Left & Right Arrows */}
+          <div className="relative flex items-center gap-2">
+            {/* Left Scroll Arrow */}
+            <button
+              type="button"
+              onClick={() => scrollMatrix('left')}
+              aria-label="Scroll left"
+              className="w-10 h-10 rounded-full bg-[#e8edff] hover:bg-[#5379EE] text-[#5379EE] hover:text-white flex items-center justify-center shrink-0 transition-all shadow-xs cursor-pointer active:scale-95"
+            >
+              <span className="material-symbols-outlined text-xl">chevron_left</span>
+            </button>
 
-              return (
-                <div
-                  key={prod.id}
-                  onClick={() => {
-                    setSelectedProductId(prod.id);
-                    setActiveTab('product-analysis');
-                  }}
-                  className="bg-white rounded-2xl p-4 border border-slate-100 shadow-xs flex flex-col justify-between hover:shadow-md hover:border-[#5379EE]/50 transition-all cursor-pointer group"
-                >
-                  <div className="space-y-3">
-                    <div className="relative w-full h-40 rounded-xl overflow-hidden bg-slate-100">
-                      <img
-                        src={prod.image}
-                        alt={prod.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                      <div className="absolute top-2 left-2 flex items-center gap-1 bg-white/90 backdrop-blur-xs px-2 py-0.5 rounded-full shadow-xs">
-                        <span className="font-mono-tech text-[10px] text-[#64748b] font-bold">SCORE</span>
-                        <span
-                          className={`font-mono-tech text-xs font-extrabold ${
-                            prod.nutriScore === 'A'
-                              ? 'text-[#4338ca]'
-                              : prod.nutriScore === 'B'
-                              ? 'text-[#5379EE]'
-                              : 'text-[#d97706]'
+            <div
+              ref={matrixScrollRef}
+              className="flex items-stretch gap-4 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-2 flex-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            >
+              {filteredProducts.map((prod) => {
+                const isHazard = prod.allergensDetected.some((a) =>
+                  userProfile.activeAllergens
+                    .filter((ua) => ua.active)
+                    .some((ua) => a.toLowerCase().includes(ua.name.toLowerCase().split(' ')[0]))
+                );
+
+                return (
+                  <div
+                    key={prod.id}
+                    onClick={() => {
+                      setSelectedProductId(prod.id);
+                      setActiveTab('product-analysis');
+                    }}
+                    className="w-[260px] sm:w-[calc(50%-8px)] lg:w-[calc(25%-12px)] shrink-0 snap-start bg-white rounded-2xl p-4 border border-slate-100 shadow-xs flex flex-col justify-between hover:shadow-md hover:border-[#5379EE]/50 transition-all cursor-pointer group"
+                  >
+                    <div className="space-y-3">
+                      <div className="relative w-full h-40 rounded-xl overflow-hidden bg-slate-100">
+                        <img
+                          src={prod.image}
+                          alt={prod.name}
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).src = getSmartProductFallbackImage(
+                              prod.name,
+                              prod.category
+                            );
+                          }}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                        <div className="absolute top-2 left-2 flex items-center gap-1 bg-white/90 backdrop-blur-xs px-2 py-0.5 rounded-full shadow-xs">
+                          <span className="font-mono-tech text-[10px] text-[#64748b] font-bold">SCORE</span>
+                          <span
+                            className={`font-mono-tech text-xs font-extrabold ${
+                              prod.nutriScore === 'A'
+                                ? 'text-[#4338ca]'
+                                : prod.nutriScore === 'B'
+                                ? 'text-[#5379EE]'
+                                : 'text-[#d97706]'
+                            }`}
+                          >
+                            {prod.nutriScore}
+                          </span>
+                        </div>
+                        <div
+                          className={`absolute top-2 right-2 px-2 py-0.5 rounded-full flex items-center gap-1 font-mono-tech text-[10px] font-bold shadow-xs ${
+                            isHazard
+                              ? 'bg-[#fff1f2] text-[#e11d48]'
+                              : prod.allergensDetected.length > 0
+                              ? 'bg-[#fffbeb] text-[#d97706]'
+                              : 'bg-[#e0e7ff] text-[#4338ca]'
                           }`}
                         >
-                          {prod.nutriScore}
-                        </span>
+                          <span className="material-symbols-outlined text-xs">
+                            {isHazard ? 'warning' : prod.allergensDetected.length > 0 ? 'report' : 'check_circle'}
+                          </span>
+                          <span>{isHazard ? 'ALERT' : prod.allergensDetected.length > 0 ? 'FLAGGED' : 'SAFE'}</span>
+                        </div>
                       </div>
-                      <div
-                        className={`absolute top-2 right-2 px-2 py-0.5 rounded-full flex items-center gap-1 font-mono-tech text-[10px] font-bold shadow-xs ${
+
+                      <div>
+                        <span className="text-[11px] text-[#64748b] font-mono-tech uppercase">
+                          {prod.brand} • {prod.netWeight}
+                        </span>
+                        <h3 className="text-sm font-bold text-[#0f172a] truncate">{prod.name}</h3>
+                        <p className="text-xs text-[#64748b] mt-1 line-clamp-2 leading-relaxed">
+                          {prod.verdictSummary}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 pt-3 border-t border-slate-50 flex items-center justify-between">
+                      <span
+                        className={`text-[11px] font-bold ${
                           isHazard
-                            ? 'bg-[#fff1f2] text-[#e11d48]'
+                            ? 'text-[#e11d48]'
                             : prod.allergensDetected.length > 0
-                            ? 'bg-[#fffbeb] text-[#d97706]'
-                            : 'bg-[#e0e7ff] text-[#4338ca]'
+                            ? 'text-[#d97706]'
+                            : 'text-[#5379EE]'
                         }`}
                       >
-                        <span className="material-symbols-outlined text-xs">
-                          {isHazard ? 'warning' : prod.allergensDetected.length > 0 ? 'report' : 'check_circle'}
-                        </span>
-                        <span>{isHazard ? 'ALERT' : prod.allergensDetected.length > 0 ? 'FLAGGED' : 'SAFE'}</span>
-                      </div>
-                    </div>
-
-                    <div>
-                      <span className="text-[11px] text-[#64748b] font-mono-tech uppercase">
-                        {prod.brand} • {prod.netWeight}
+                        {isHazard ? 'Shield Flagged' : prod.allergensDetected.length > 0 ? 'Trace Caution' : 'Verified Safe'}
                       </span>
-                      <h3 className="text-sm font-bold text-[#0f172a] truncate">{prod.name}</h3>
-                      <p className="text-xs text-[#64748b] mt-1 line-clamp-2 leading-relaxed">
-                        {prod.verdictSummary}
-                      </p>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          triggerScanCheck(prod);
+                        }}
+                        className="w-7 h-7 rounded-full bg-[#f1f5f9] hover:bg-[#5379EE] hover:text-white flex items-center justify-center text-[#64748b] transition-colors"
+                        title="Test Sensory Scan"
+                      >
+                        <span className="material-symbols-outlined text-base">radar</span>
+                      </button>
                     </div>
                   </div>
+                );
+              })}
+            </div>
 
-                  <div className="mt-4 pt-3 border-t border-slate-50 flex items-center justify-between">
-                    <span
-                      className={`text-[11px] font-bold ${
-                        isHazard
-                          ? 'text-[#e11d48]'
-                          : prod.allergensDetected.length > 0
-                          ? 'text-[#d97706]'
-                          : 'text-[#5379EE]'
-                      }`}
-                    >
-                      {isHazard ? 'Shield Flagged' : prod.allergensDetected.length > 0 ? 'Trace Caution' : 'Verified Safe'}
-                    </span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        triggerScanCheck(prod);
-                      }}
-                      className="w-7 h-7 rounded-full bg-[#f1f5f9] hover:bg-[#5379EE] hover:text-white flex items-center justify-center text-[#64748b] transition-colors"
-                      title="Test Sensory Scan"
-                    >
-                      <span className="material-symbols-outlined text-base">radar</span>
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
+            {/* Right Scroll Arrow */}
+            <button
+              type="button"
+              onClick={() => scrollMatrix('right')}
+              aria-label="Scroll right"
+              className="w-10 h-10 rounded-full bg-[#e8edff] hover:bg-[#5379EE] text-[#5379EE] hover:text-white flex items-center justify-center shrink-0 transition-all shadow-xs cursor-pointer active:scale-95"
+            >
+              <span className="material-symbols-outlined text-xl">chevron_right</span>
+            </button>
           </div>
         </div>
+
+        {/* Nutritional Intake History & 30-Day Trends (Recharts) */}
+        <NutritionHistoryChart />
 
         {/* Research Study Evaluation & Empirical Metrics (IngreGuide RS-IV Section C1 & C3) */}
         <ResearchMetricsPanel />
