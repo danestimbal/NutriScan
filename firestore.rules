@@ -42,6 +42,12 @@ service cloud.firestore {
       allow delete: if isSignedIn();
     }
 
+    // Front page content edited from Admin Console → Front Page Settings
+    match /siteSettings/{settingId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
     // Additive policy rules engine
     match /additivePolicies/{eCode} {
       allow read: if true;

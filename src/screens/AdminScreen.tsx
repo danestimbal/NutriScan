@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { FoodProduct } from '../types';
+import { resolveBestProductImage } from '../utils/barcode';
+import { LandingSettingsPanel } from '../components/LandingSettingsPanel';
 
 export const AdminScreen: React.FC = () => {
   const {
@@ -13,10 +15,23 @@ export const AdminScreen: React.FC = () => {
     toggleAdditivePolicy,
     setSelectedProductId,
     setActiveTab,
+    scanLogs,
+    userProfile,
   } = useApp();
+
+  const needsReviewCount = products.filter((p) => p.moderationStatus === 'needs_review' || !p.isVerified).length;
+  const flaggedCount = products.filter(
+    (p) => p.moderationStatus === 'flagged' || (p.userReportsCount && p.userReportsCount > 0)
+  ).length;
+  const verifiedAdditivesCount =
+    additivePolicies.length +
+    products.reduce((sum, p) => sum + (p.additivesDecoded?.length || 0), 0);
+  const enforcedPoliciesCount = additivePolicies.filter((p) => p.isEnforced).length;
+  const activeAllergenCount = userProfile.activeAllergens.filter((a) => a.active).length;
 
   const [activeCatalogTab, setActiveCatalogTab] = useState<'all' | 'review' | 'flagged' | 'gluten'>('all');
   const [adminSearch, setAdminSearch] = useState('');
+  const [adminView, setAdminView] = useState<'catalog' | 'frontpage'>('catalog');
   const [showNewModal, setShowNewModal] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -27,6 +42,7 @@ export const AdminScreen: React.FC = () => {
   const [newCategory, setNewCategory] = useState('Whole Grain Snack Bars & Cereals');
   const [newWeight, setNewWeight] = useState('50g');
   const [newAllergens, setNewAllergens] = useState('');
+  const [newImage, setNewImage] = useState('');
   const [newNutriScore, setNewNutriScore] = useState<'A' | 'B' | 'C' | 'D' | 'E'>('A');
 
   const showToast = (msg: string) => {
@@ -34,9 +50,18 @@ export const AdminScreen: React.FC = () => {
     setTimeout(() => setToastMessage(null), 2500);
   };
 
-  const handleCreateProduct = (e: React.FormEvent) => {
+  const handleCreateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newBarcode || !newName) return;
+
+    const resolvedImage =
+      newImage.trim() ||
+      (await resolveBestProductImage({
+        barcode: newBarcode,
+        name: newName,
+        brand: newBrand,
+        category: newCategory,
+      }));
 
     const newProd: FoodProduct = {
       id: `prod-${Date.now()}`,
@@ -45,7 +70,7 @@ export const AdminScreen: React.FC = () => {
       brand: newBrand || 'Independent Maker',
       category: newCategory,
       netWeight: newWeight,
-      image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&auto=format&fit=crop&q=80',
+      image: resolvedImage,
       nutriScore: newNutriScore,
       novaGroup: 2,
       transparencyScore: 90,
@@ -107,6 +132,7 @@ export const AdminScreen: React.FC = () => {
     setNewBarcode('');
     setNewName('');
     setNewBrand('');
+    setNewImage('');
   };
 
   const filteredCatalog = products.filter((p) => {
@@ -185,6 +211,32 @@ export const AdminScreen: React.FC = () => {
           </div>
         </div>
 
+        {/* Console View Switcher */}
+        <div className="inline-flex flex-wrap gap-1 p-1 bg-white rounded-2xl border border-slate-100 shadow-xs">
+          {(
+            [
+              { id: 'catalog', label: 'Catalog & Moderation', icon: 'inventory_2' },
+              { id: 'frontpage', label: 'Front Page Settings', icon: 'web' },
+            ] as const
+          ).map((view) => (
+            <button
+              key={view.id}
+              type="button"
+              onClick={() => setAdminView(view.id)}
+              className={`px-4 py-2 rounded-xl font-mono-tech text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                adminView === view.id ? 'bg-[#5379EE] text-white shadow-xs' : 'text-[#64748b] hover:text-[#0f172a]'
+              }`}
+            >
+              <span className="material-symbols-outlined text-sm">{view.icon}</span>
+              <span>{view.label}</span>
+            </button>
+          ))}
+        </div>
+
+        {adminView === 'frontpage' ? (
+          <LandingSettingsPanel onToast={showToast} />
+        ) : (
+          <>
         {/* Global Search Bar */}
         <div className="relative w-full">
           <div className="relative flex items-center">
@@ -213,7 +265,7 @@ export const AdminScreen: React.FC = () => {
                 <span className="font-mono-tech text-[10px] text-[#64748b] uppercase tracking-wider font-bold">
                   Total Food Products
                 </span>
-                <span className="text-3xl font-extrabold text-[#0f172a] mt-1 block">14,820</span>
+                <span className="text-3xl font-extrabold text-[#0f172a] mt-1 block">{products.length}</span>
               </div>
               <div className="w-10 h-10 rounded-full bg-[#EEF2FF] flex items-center justify-center text-[#5379EE]">
                 <span className="material-symbols-outlined text-xl">nutrition</span>
@@ -221,9 +273,9 @@ export const AdminScreen: React.FC = () => {
             </div>
             <div className="flex items-center gap-2 mt-4 text-xs">
               <span className="flex items-center text-[#5379EE] font-mono-tech font-bold">
-                <span className="material-symbols-outlined text-xs">trending_up</span> +4.2%
+                <span className="material-symbols-outlined text-xs">cloud_done</span> Live DB
               </span>
-              <span className="text-[#64748b]">from last week (+593 items)</span>
+              <span className="text-[#64748b]">{products.filter((p) => p.isVerified).length} verified in catalog</span>
             </div>
             <div className="absolute bottom-0 left-0 right-0 h-1 bg-[#5379EE]"></div>
           </div>
@@ -234,7 +286,7 @@ export const AdminScreen: React.FC = () => {
                 <span className="font-mono-tech text-[10px] text-[#64748b] uppercase tracking-wider font-bold">
                   Verified Additives &amp; Codes
                 </span>
-                <span className="text-3xl font-extrabold text-[#0f172a] mt-1 block">3,450</span>
+                <span className="text-3xl font-extrabold text-[#0f172a] mt-1 block">{verifiedAdditivesCount}</span>
               </div>
               <div className="w-10 h-10 rounded-full bg-[#EEF2FF] flex items-center justify-center text-[#5379EE]">
                 <span className="material-symbols-outlined text-xl">verified_user</span>
@@ -242,7 +294,7 @@ export const AdminScreen: React.FC = () => {
             </div>
             <div className="flex items-center gap-2 mt-4 text-xs">
               <span className="px-2 py-0.5 rounded-full bg-[#EEF2FF] text-[#5379EE] font-mono-tech text-[10px] font-bold">
-                100% VERIFIED
+                {enforcedPoliciesCount}/{additivePolicies.length} ENFORCED
               </span>
               <span className="text-[#64748b]">EU EFSA &amp; US FDA Synced</span>
             </div>
@@ -253,9 +305,9 @@ export const AdminScreen: React.FC = () => {
             <div className="flex items-start justify-between">
               <div>
                 <span className="font-mono-tech text-[10px] text-[#64748b] uppercase tracking-wider font-bold">
-                  Active User Profiles
+                  Synced Radar Scans
                 </span>
-                <span className="text-3xl font-extrabold text-[#0f172a] mt-1 block">892</span>
+                <span className="text-3xl font-extrabold text-[#0f172a] mt-1 block">{scanLogs.length}</span>
               </div>
               <div className="w-10 h-10 rounded-full bg-[#f0f3ff] flex items-center justify-center text-[#565e74]">
                 <span className="material-symbols-outlined text-xl">group</span>
@@ -263,9 +315,9 @@ export const AdminScreen: React.FC = () => {
             </div>
             <div className="flex items-center gap-2 mt-4 text-xs">
               <span className="flex items-center text-[#5379EE] font-mono-tech font-bold">
-                <span className="material-symbols-outlined text-xs">arrow_upward</span> +18 today
+                <span className="material-symbols-outlined text-xs">radar</span> {activeAllergenCount} active targets
               </span>
-              <span className="text-[#64748b]">542 custom radars</span>
+              <span className="text-[#64748b]">{userProfile.watchlist.length} watchlist rules</span>
             </div>
             <div className="absolute bottom-0 left-0 right-0 h-1 bg-[#565e74]"></div>
           </div>
@@ -276,7 +328,7 @@ export const AdminScreen: React.FC = () => {
                 <span className="font-mono-tech text-[10px] text-[#64748b] uppercase tracking-wider font-bold">
                   Pending Submissions
                 </span>
-                <span className="text-3xl font-extrabold text-[#e11d48] mt-1 block">18</span>
+                <span className="text-3xl font-extrabold text-[#e11d48] mt-1 block">{needsReviewCount}</span>
               </div>
               <div className="w-10 h-10 rounded-full bg-[#fff1f2] flex items-center justify-center text-[#e11d48]">
                 <span className="material-symbols-outlined text-xl">pending_actions</span>
@@ -285,9 +337,9 @@ export const AdminScreen: React.FC = () => {
             <div className="flex items-center gap-2 mt-4 text-xs">
               <span className="px-2 py-0.5 rounded-full bg-[#fff1f2] text-[#e11d48] font-mono-tech text-[10px] font-bold flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#e11d48] animate-ping"></span>
-                ACTION NEEDED
+                {needsReviewCount > 0 ? 'ACTION NEEDED' : 'ALL VERIFIED'}
               </span>
-              <span className="text-[#64748b]">Requires verification</span>
+              <span className="text-[#64748b]">{flaggedCount} flagged items</span>
             </div>
             <div className="absolute bottom-0 left-0 right-0 h-1 bg-[#e11d48]"></div>
           </div>
@@ -319,7 +371,9 @@ export const AdminScreen: React.FC = () => {
                   }`}
                 >
                   <span>Needs Review</span>
-                  <span className="px-1.5 py-0.2 rounded-full bg-[#e11d48] text-white text-[10px]">18</span>
+                  <span className="px-1.5 py-0.2 rounded-full bg-[#e11d48] text-white text-[10px]">
+                    {needsReviewCount}
+                  </span>
                 </button>
                 <button
                   onClick={() => setActiveCatalogTab('flagged')}
@@ -330,7 +384,9 @@ export const AdminScreen: React.FC = () => {
                   }`}
                 >
                   <span>Flagged Discrepancies</span>
-                  <span className="px-1.5 py-0.2 rounded-full bg-[#fffbeb] text-[#d97706] text-[10px]">7</span>
+                  <span className="px-1.5 py-0.2 rounded-full bg-[#fffbeb] text-[#d97706] text-[10px]">
+                    {flaggedCount}
+                  </span>
                 </button>
                 <button
                   onClick={() => setActiveCatalogTab('gluten')}
@@ -470,60 +526,57 @@ export const AdminScreen: React.FC = () => {
               </div>
 
               <div className="space-y-2.5">
-                <div className="p-3 rounded-2xl bg-[#f8fafc] border border-slate-100 flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-[#fff1f2] text-[#e11d48] flex items-center justify-center shrink-0">
-                    <span className="material-symbols-outlined text-base">emergency</span>
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-[#0f172a] truncate">Peanut Warning Triggered</span>
-                      <span className="text-[10px] text-[#64748b]">2m ago</span>
+                {scanLogs.slice(0, 4).map((log) => (
+                  <div
+                    key={log.id}
+                    className="p-3 rounded-2xl bg-[#f8fafc] border border-slate-100 flex items-start gap-3"
+                  >
+                    <div
+                      className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+                        log.verdict === 'HAZARD'
+                          ? 'bg-[#fff1f2] text-[#e11d48]'
+                          : log.verdict === 'WARNING'
+                          ? 'bg-[#fffbeb] text-[#d97706]'
+                          : 'bg-[#EEF2FF] text-[#5379EE]'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-base">
+                        {log.verdict === 'HAZARD'
+                          ? 'emergency'
+                          : log.verdict === 'WARNING'
+                          ? 'report'
+                          : 'verified'}
+                      </span>
                     </div>
-                    <p className="text-[11px] text-[#64748b] truncate">User #4892 • Scanned Protein Bar</p>
-                    <span className="font-mono-tech text-[10px] text-[#e11d48] font-bold block mt-0.5">
-                      Match: Severe Anaphylactic Tier
-                    </span>
-                  </div>
-                </div>
-
-                <div className="p-3 rounded-2xl bg-[#f8fafc] border border-slate-100 flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-[#EEF2FF] text-[#5379EE] flex items-center justify-center shrink-0">
-                    <span className="material-symbols-outlined text-base">person_edit</span>
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-[#0f172a] truncate">Dietary Profile Updated</span>
-                      <span className="text-[10px] text-[#64748b]">14m ago</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-bold text-[#0f172a] truncate">{log.productName}</span>
+                        <span className="text-[10px] text-[#64748b] shrink-0">{log.timestamp}</span>
+                      </div>
+                      <p className="text-[11px] text-[#64748b] truncate">
+                        {log.brand} • UPC: {log.barcode}
+                      </p>
+                      <span
+                        className={`font-mono-tech text-[10px] font-bold block mt-0.5 ${
+                          log.verdict === 'HAZARD'
+                            ? 'text-[#e11d48]'
+                            : log.verdict === 'WARNING'
+                            ? 'text-[#d97706]'
+                            : 'text-[#5379EE]'
+                        }`}
+                      >
+                        {log.verdictLabel}
+                      </span>
                     </div>
-                    <p className="text-[11px] text-[#64748b] truncate">User #9011 added Celiac/Gluten filter</p>
-                    <span className="font-mono-tech text-[10px] text-[#5379EE] font-bold block mt-0.5">
-                      Radar sensitivity recalibrated
-                    </span>
                   </div>
-                </div>
-
-                <div className="p-3 rounded-2xl bg-[#f8fafc] border border-slate-100 flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-[#fffbeb] text-[#d97706] flex items-center justify-center shrink-0">
-                    <span className="material-symbols-outlined text-base">report</span>
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-[#0f172a] truncate">Barcode Misread Report</span>
-                      <span className="text-[10px] text-[#64748b]">41m ago</span>
-                    </div>
-                    <p className="text-[11px] text-[#64748b] truncate">UPC: 841029302 flagged for unlisted sulfites</p>
-                    <span className="font-mono-tech text-[10px] text-[#d97706] font-bold block mt-0.5">
-                      Queued for OCR retry
-                    </span>
-                  </div>
-                </div>
+                ))}
               </div>
 
               <button
                 onClick={() => showToast('Opening live telemetry feed window.')}
                 className="w-full py-2.5 rounded-full bg-[#f1f5f9] hover:bg-slate-200 text-[#0f172a] font-mono-tech text-xs font-bold transition-colors text-center"
               >
-                Stream Full Event Stream (1,294 today)
+                Stream Full Event Stream ({scanLogs.length} synced logs)
               </button>
             </div>
 
@@ -588,6 +641,8 @@ export const AdminScreen: React.FC = () => {
             </div>
           </div>
         </div>
+          </>
+        )}
       </div>
 
       {/* New Product Entry Modal */}
@@ -685,6 +740,19 @@ export const AdminScreen: React.FC = () => {
                   value={newAllergens}
                   onChange={(e) => setNewAllergens(e.target.value)}
                   placeholder="e.g. Almonds, Soy Lecithin"
+                  className="w-full h-10 px-3 rounded-xl bg-[#f8fafc] border border-slate-200 text-xs text-[#0f172a] outline-none focus:border-[#5379EE]"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="block font-mono-tech text-[11px] font-semibold text-[#1e293b]">
+                  Product Image URL (optional — auto-fetched if blank)
+                </label>
+                <input
+                  type="url"
+                  value={newImage}
+                  onChange={(e) => setNewImage(e.target.value)}
+                  placeholder="https://... (leave blank to auto-fetch from barcode/brand)"
                   className="w-full h-10 px-3 rounded-xl bg-[#f8fafc] border border-slate-200 text-xs text-[#0f172a] outline-none focus:border-[#5379EE]"
                 />
               </div>
