@@ -1,9 +1,16 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { FoodProduct } from '../types';
-import { resolveBestProductImage } from '../utils/barcode';
+import {
+  buildIngredientsAnalysis,
+  fetchExternalProductByBarcode,
+  hasGap,
+  resolveBestProductImage,
+} from '../utils/barcode';
+import { detectAllergensFromText } from '../utils/allergens';
 import { LandingSettingsPanel } from '../components/LandingSettingsPanel';
 import { UserManagementPanel } from '../components/UserManagementPanel';
+import { ResearchMetricsPanel } from '../components/ResearchMetricsPanel';
 import { OWNER_ADMIN_EMAIL } from '../config/admin';
 
 /** Only admins see the console; everyone else gets a sign-in / access notice. */
@@ -37,14 +44,14 @@ export const AdminScreen: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setActiveTab('dashboard')}
-                className="px-4 py-2 rounded-full bg-[#f1f5f9] hover:bg-slate-200 text-[#0f172a] font-mono-tech text-xs font-bold cursor-pointer"
+                className="px-4 py-2 rounded-full bg-[#f1f5f9] hover:bg-slate-200 text-[#0f172a] text-xs font-bold cursor-pointer"
               >
                 Back to app
               </button>
               <button
                 type="button"
                 onClick={() => handleLogout()}
-                className="px-4 py-2 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white font-mono-tech text-xs font-bold cursor-pointer"
+                className="px-4 py-2 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white text-xs font-bold cursor-pointer"
               >
                 Sign in with another account
               </button>
@@ -69,6 +76,7 @@ const AdminConsole: React.FC = () => {
     setActiveTab,
     scanLogs,
     userProfile,
+    currentUserEmail,
   } = useApp();
 
   const needsReviewCount = products.filter((p) => p.moderationStatus === 'needs_review' || !p.isVerified).length;
@@ -83,7 +91,7 @@ const AdminConsole: React.FC = () => {
 
   const [activeCatalogTab, setActiveCatalogTab] = useState<'all' | 'review' | 'flagged' | 'gluten'>('all');
   const [adminSearch, setAdminSearch] = useState('');
-  const [adminView, setAdminView] = useState<'catalog' | 'users' | 'frontpage'>('catalog');
+  const [adminView, setAdminView] = useState<'catalog' | 'users' | 'research' | 'frontpage'>('catalog');
   const [showNewModal, setShowNewModal] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -91,8 +99,10 @@ const AdminConsole: React.FC = () => {
   const [newBarcode, setNewBarcode] = useState('');
   const [newName, setNewName] = useState('');
   const [newBrand, setNewBrand] = useState('');
-  const [newCategory, setNewCategory] = useState('Whole Grain Snack Bars & Cereals');
-  const [newWeight, setNewWeight] = useState('50g');
+  const [newCategory, setNewCategory] = useState('');
+  const [newIngredients, setNewIngredients] = useState('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [newWeight, setNewWeight] = useState('');
   const [newAllergens, setNewAllergens] = useState('');
   const [newImage, setNewImage] = useState('');
   const [newNutriScore, setNewNutriScore] = useState<'A' | 'B' | 'C' | 'D' | 'E'>('A');
@@ -115,76 +125,131 @@ const AdminConsole: React.FC = () => {
         category: newCategory,
       }));
 
+    const ingredientsText = newIngredients.trim();
+    const typedAllergens = newAllergens
+      .split(',')
+      .map((a) => a.trim())
+      .filter(Boolean);
+    const allergens = typedAllergens.length ? typedAllergens : detectAllergensFromText(ingredientsText);
+
     const newProd: FoodProduct = {
       id: `prod-${Date.now()}`,
-      barcode: newBarcode,
-      name: newName,
-      brand: newBrand || 'Independent Maker',
-      category: newCategory,
-      netWeight: newWeight,
+      barcode: newBarcode.trim(),
+      name: newName.trim(),
+      brand: newBrand.trim() || 'Brand not listed',
+      category: newCategory.trim() || 'Uncategorized',
+      netWeight: newWeight.trim() || 'Not listed',
       image: resolvedImage,
       nutriScore: newNutriScore,
-      novaGroup: 2,
-      transparencyScore: 90,
-      allergensDetected: newAllergens ? newAllergens.split(',').map((s) => s.trim()) : [],
-      facilityWarnings: ['Verified facility audit.'],
-      ingredientsVerbatim: 'Whole Grain Ingredients, Sea Salt, Natural Flavors.',
-      mandatoryWarning: newAllergens ? `CONTAINS: ${newAllergens}` : 'No major allergens declared.',
+      novaGroup: 4,
+      transparencyScore: 0,
+      allergensDetected: allergens,
+      facilityWarnings: [],
+      ingredientsVerbatim:
+        ingredientsText || 'No ingredient list has been entered for this product. Read the package label.',
+      mandatoryWarning: allergens.length
+        ? `CONTAINS: ${allergens.join(', ').toUpperCase()}.`
+        : ingredientsText
+          ? 'No major allergens found in the ingredient list entered.'
+          : 'Allergens could not be checked because no ingredient list has been entered.',
       isVerified: true,
-      verdictSummary: 'Clean formulation reviewed by administrative nutrition staff.',
-      dietaryRecommendation: 'Clean Whole Food Snack',
-      ingredientsAnalysis: [
-        {
-          name: newName,
-          description: 'Whole ingredients matrix.',
-          status: 'Safe',
-          category: 'Natural',
-        },
-      ],
+      verdictSummary: 'Added by an IngreGuide administrator.',
+      dietaryRecommendation: allergens.length
+        ? `Avoid if you react to ${allergens.join(' or ')}.`
+        : 'No recommendation recorded.',
+      ingredientsAnalysis: buildIngredientsAnalysis(ingredientsText),
       additivesDecoded: [],
-      sugarsBreakdown: {
-        totalGrams: 4,
-        percentDV: 8,
-        glycemicIndex: 35,
-        glycemicLabel: 'Low (35 GI)',
-        items: [],
-      },
+      sugarsBreakdown: { totalGrams: 0, percentDV: 0, glycemicIndex: 0, glycemicLabel: 'Not available', items: [] },
       nutrients: {
-        calories: 150,
-        servingSize: newWeight,
-        totalFat: '4g',
-        totalFatDV: '5%',
-        satFat: '0.5g',
-        satFatDV: '2%',
-        sodium: '80mg',
-        sodiumDV: '3%',
-        carbs: '22g',
-        carbsDV: '8%',
-        fiber: '4g',
-        fiberDV: '14%',
-        sugars: '4g',
-        addedSugars: '2g',
-        protein: '5g',
-        proteinDV: '10%',
+        calories: 0,
+        servingSize: 'Not listed',
+        totalFat: '—',
+        totalFatDV: '—',
+        satFat: '—',
+        satFatDV: '—',
+        sodium: '—',
+        sodiumDV: '—',
+        carbs: '—',
+        carbsDV: '—',
+        fiber: '—',
+        fiberDV: '—',
+        sugars: '—',
+        addedSugars: '—',
+        protein: '—',
+        proteinDV: '—',
       },
-      certifications: [
-        {
-          title: 'Admin Verified Batch',
-          details: 'Certified in IngreGuide Catalog v2.4',
-          verified: true,
-          icon: 'verified_user',
-        },
-      ],
+      certifications: [],
       moderationStatus: 'approved',
+      dataSource: 'Admin entry',
+      // Nutrition facts, processing group and transparency score are not collected by this form.
+      dataGaps: ['nutrition', 'nova', 'transparency', ...(ingredientsText ? [] : (['ingredients'] as const))],
     };
 
     addNewProduct(newProd);
     setShowNewModal(false);
-    showToast(`Added ${newName} to verified catalog!`);
+    showToast(`Added ${newName} to the catalog.`);
+    setNewIngredients('');
+    setNewAllergens('');
     setNewBarcode('');
     setNewName('');
     setNewBrand('');
     setNewImage('');
+  };
+
+  /** Downloads the catalog as a CSV file. */
+  const exportCatalogCsv = () => {
+    const cell = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+    const header = ['Barcode', 'Name', 'Brand', 'Category', 'Nutri-Score', 'NOVA', 'Allergens', 'Verified', 'Source', 'Missing data'];
+    const rows = products.map((prod) => [
+      prod.barcode,
+      prod.name,
+      prod.brand,
+      prod.category,
+      hasGap(prod, 'nutriScore') ? '' : prod.nutriScore,
+      hasGap(prod, 'nova') ? '' : prod.novaGroup,
+      prod.allergensDetected.join('; '),
+      prod.isVerified ? 'yes' : 'no',
+      prod.dataSource || '',
+      (prod.dataGaps || []).join('; '),
+    ]);
+    const csv = [header, ...rows].map((r) => r.map(cell).join(',')).join('\n');
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    link.download = `IngreGuide_Catalog_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(link.href);
+    showToast(`Exported ${products.length} products.`);
+  };
+
+  /** Re-imports unverified, automatically imported products so placeholder values from older versions are replaced. */
+  const refreshImportedProducts = async () => {
+    const targets = products.filter((prod) => prod.id.startsWith('ext-') && prod.moderationStatus !== 'approved');
+    if (targets.length === 0) {
+      showToast('No unreviewed imported products to refresh.');
+      return;
+    }
+    setIsRefreshing(true);
+    let updated = 0;
+    for (const prod of targets) {
+      const fresh = await fetchExternalProductByBarcode(prod.barcode);
+      if (fresh) {
+        await updateProduct({ ...fresh, id: prod.id });
+        updated++;
+      }
+    }
+    setIsRefreshing(false);
+    showToast(`Refreshed ${updated} of ${targets.length} imported products from the online sources.`);
+  };
+
+  /** Number of catalog products that list a given additive code. */
+  const productsWithAdditive = (eCode: string) => {
+    const pattern = new RegExp(`\\b${eCode.replace(/[^a-z0-9]/gi, '')}\\b`, 'i');
+    return products.filter(
+      (prod) =>
+        prod.additivesDecoded.some((a) => pattern.test(a.eCode)) || pattern.test(prod.ingredientsVerbatim || '')
+    ).length;
   };
 
   const filteredCatalog = products.filter((p) => {
@@ -214,17 +279,17 @@ const AdminConsole: React.FC = () => {
         {/* Top System Bar & Environment Badges */}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EEF2FF] text-[#5379EE] font-mono-tech text-xs font-bold shadow-xs">
-              <span className="w-2 h-2 rounded-full bg-[#5379EE]"></span>
-              <span>ADMIN PORTAL • v2.4.9</span>
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EEF2FF] text-[#5379EE] text-xs font-bold shadow-xs">
+              <span className="material-symbols-outlined text-sm">shield_person</span>
+              <span>Admin Console</span>
             </div>
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#f1f5f9] text-[#565e74] font-mono-tech text-xs">
-              <span className="material-symbols-outlined text-sm">dns</span>
-              <span>Prod Cluster (US-East)</span>
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#f1f5f9] text-[#565e74] text-xs">
+              <span className="material-symbols-outlined text-sm">person</span>
+              <span>{currentUserEmail || 'Signed in'}</span>
             </div>
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#f1f5f9] text-[#5379EE] font-mono-tech text-xs">
-              <span className="material-symbols-outlined text-sm">favorite</span>
-              <span>Database Status: Healthy (99.99%)</span>
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#f1f5f9] text-[#565e74] text-xs">
+              <span className="material-symbols-outlined text-sm">inventory_2</span>
+              <span>{products.length} products in the database</span>
             </div>
           </div>
 
@@ -234,31 +299,39 @@ const AdminConsole: React.FC = () => {
               onClick={async () => {
                 try {
                   await reseedDatabase();
-                  showToast('Successfully seeded 52 products & policies into Firestore!');
+                  showToast('Sample catalog and additive policies written to the database.');
                 } catch (err: any) {
-                  showToast(`Seeding notice: ${err?.message || 'Check connection'}`);
+                  showToast(`Could not write the sample catalog: ${err?.message || 'check your connection'}`);
                 }
               }}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white font-mono-tech text-xs font-bold transition-all shadow-xs disabled:opacity-50 cursor-pointer"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white text-xs font-bold transition-all shadow-xs disabled:opacity-50 cursor-pointer"
             >
               <span className={`material-symbols-outlined text-sm ${isSeeding ? 'animate-spin' : ''}`}>
                 {isSeeding ? 'refresh' : 'cloud_sync'}
               </span>
-              <span>{isSeeding ? 'Seeding to Cloud...' : `Sync 52 Products to DB (${products.length})`}</span>
+              <span>{isSeeding ? 'Writing…' : 'Restore Sample Catalog'}</span>
             </button>
             <button
-              onClick={() => showToast('Audit logs exported to CSV & JSON format.')}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#f1f5f9] hover:bg-slate-200 text-[#0f172a] font-mono-tech text-xs font-bold transition-all shadow-xs"
+              disabled={isRefreshing}
+              onClick={refreshImportedProducts}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#f1f5f9] hover:bg-slate-200 text-[#0f172a] text-xs font-bold transition-all shadow-xs disabled:opacity-50 cursor-pointer"
+            >
+              <span className={`material-symbols-outlined text-sm ${isRefreshing ? 'animate-spin' : ''}`}>refresh</span>
+              <span>{isRefreshing ? 'Refreshing…' : 'Refresh Imported Products'}</span>
+            </button>
+            <button
+              onClick={exportCatalogCsv}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#f1f5f9] hover:bg-slate-200 text-[#0f172a] text-xs font-bold transition-all shadow-xs cursor-pointer"
             >
               <span className="material-symbols-outlined text-sm">download</span>
-              <span>Export Audit Logs</span>
+              <span>Export Catalog CSV</span>
             </button>
             <button
               onClick={() => setShowNewModal(true)}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#0f172a] hover:bg-slate-800 text-white font-mono-tech text-xs font-bold transition-all shadow-sm"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#0f172a] hover:bg-slate-800 text-white text-xs font-bold transition-all shadow-sm"
             >
               <span className="material-symbols-outlined text-sm">add</span>
-              <span>+ New Product Entry</span>
+              <span>New Product</span>
             </button>
           </div>
         </div>
@@ -269,6 +342,7 @@ const AdminConsole: React.FC = () => {
             [
               { id: 'catalog', label: 'Catalog & Moderation', icon: 'inventory_2' },
               { id: 'users', label: 'Users', icon: 'manage_accounts' },
+              { id: 'research', label: 'Research & Compliance', icon: 'science' },
               { id: 'frontpage', label: 'Front Page Settings', icon: 'web' },
             ] as const
           ).map((view) => (
@@ -276,7 +350,7 @@ const AdminConsole: React.FC = () => {
               key={view.id}
               type="button"
               onClick={() => setAdminView(view.id)}
-              className={`px-4 py-2 rounded-xl font-mono-tech text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                 adminView === view.id ? 'bg-[#5379EE] text-white shadow-xs' : 'text-[#64748b] hover:text-[#0f172a]'
               }`}
             >
@@ -290,6 +364,8 @@ const AdminConsole: React.FC = () => {
           <LandingSettingsPanel onToast={showToast} />
         ) : adminView === 'users' ? (
           <UserManagementPanel onToast={showToast} />
+        ) : adminView === 'research' ? (
+          <ResearchMetricsPanel />
         ) : (
           <>
         {/* Global Search Bar */}
@@ -302,13 +378,9 @@ const AdminConsole: React.FC = () => {
               type="text"
               value={adminSearch}
               onChange={(e) => setAdminSearch(e.target.value)}
-              placeholder="Search UPC barcode, food brand, additive E-code, or user profile ID..."
-              className="w-full h-12 pl-11 pr-24 rounded-full bg-white text-[#0f172a] placeholder:text-[#94a3b8] text-xs font-medium border border-slate-200 shadow-xs outline-none focus:bg-[#EEF2FF]/40 focus:border-[#5379EE] transition-all"
+              placeholder="Search the catalog by product name, brand or barcode"
+              className="w-full h-12 pl-11 pr-4 rounded-full bg-white text-[#0f172a] placeholder:text-[#94a3b8] text-xs font-medium border border-slate-200 shadow-xs outline-none focus:bg-[#EEF2FF]/40 focus:border-[#5379EE] transition-all"
             />
-            <div className="absolute right-4 flex items-center gap-1">
-              <kbd className="px-2 py-0.5 rounded bg-slate-100 font-mono-tech text-[10px] text-[#64748b]">⌘</kbd>
-              <kbd className="px-2 py-0.5 rounded bg-slate-100 font-mono-tech text-[10px] text-[#64748b]">K</kbd>
-            </div>
           </div>
         </div>
 
@@ -317,7 +389,7 @@ const AdminConsole: React.FC = () => {
           <div className="relative overflow-hidden bg-white rounded-3xl p-6 border border-slate-100 shadow-xs">
             <div className="flex items-start justify-between">
               <div>
-                <span className="font-mono-tech text-[10px] text-[#64748b] uppercase tracking-wider font-bold">
+                <span className="text-[10px] text-[#64748b] uppercase tracking-wider font-bold">
                   Total Food Products
                 </span>
                 <span className="text-3xl font-extrabold text-[#0f172a] mt-1 block">{products.length}</span>
@@ -327,7 +399,7 @@ const AdminConsole: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center gap-2 mt-4 text-xs">
-              <span className="flex items-center text-[#5379EE] font-mono-tech font-bold">
+              <span className="flex items-center text-[#5379EE] font-bold">
                 <span className="material-symbols-outlined text-xs">cloud_done</span> Live DB
               </span>
               <span className="text-[#64748b]">{products.filter((p) => p.isVerified).length} verified in catalog</span>
@@ -338,8 +410,8 @@ const AdminConsole: React.FC = () => {
           <div className="relative overflow-hidden bg-white rounded-3xl p-6 border border-slate-100 shadow-xs">
             <div className="flex items-start justify-between">
               <div>
-                <span className="font-mono-tech text-[10px] text-[#64748b] uppercase tracking-wider font-bold">
-                  Verified Additives &amp; Codes
+                <span className="text-[10px] text-[#64748b] uppercase tracking-wider font-bold">
+                  Additives &amp; Policies
                 </span>
                 <span className="text-3xl font-extrabold text-[#0f172a] mt-1 block">{verifiedAdditivesCount}</span>
               </div>
@@ -348,10 +420,10 @@ const AdminConsole: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center gap-2 mt-4 text-xs">
-              <span className="px-2 py-0.5 rounded-full bg-[#EEF2FF] text-[#5379EE] font-mono-tech text-[10px] font-bold">
+              <span className="px-2 py-0.5 rounded-full bg-[#EEF2FF] text-[#5379EE] text-[10px] font-bold">
                 {enforcedPoliciesCount}/{additivePolicies.length} ENFORCED
               </span>
-              <span className="text-[#64748b]">EU EFSA &amp; US FDA Synced</span>
+              <span className="text-[#64748b]">additive policies switched on</span>
             </div>
             <div className="absolute bottom-0 left-0 right-0 h-1 bg-[#4368DD]"></div>
           </div>
@@ -359,8 +431,8 @@ const AdminConsole: React.FC = () => {
           <div className="relative overflow-hidden bg-white rounded-3xl p-6 border border-slate-100 shadow-xs">
             <div className="flex items-start justify-between">
               <div>
-                <span className="font-mono-tech text-[10px] text-[#64748b] uppercase tracking-wider font-bold">
-                  Synced Radar Scans
+                <span className="text-[10px] text-[#64748b] uppercase tracking-wider font-bold">
+                  My Scans (This Account)
                 </span>
                 <span className="text-3xl font-extrabold text-[#0f172a] mt-1 block">{scanLogs.length}</span>
               </div>
@@ -369,7 +441,7 @@ const AdminConsole: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center gap-2 mt-4 text-xs">
-              <span className="flex items-center text-[#5379EE] font-mono-tech font-bold">
+              <span className="flex items-center text-[#5379EE] font-bold">
                 <span className="material-symbols-outlined text-xs">radar</span> {activeAllergenCount} active targets
               </span>
               <span className="text-[#64748b]">{userProfile.watchlist.length} watchlist rules</span>
@@ -380,7 +452,7 @@ const AdminConsole: React.FC = () => {
           <div className="relative overflow-hidden bg-white rounded-3xl p-6 border border-slate-100 shadow-xs">
             <div className="flex items-start justify-between">
               <div>
-                <span className="font-mono-tech text-[10px] text-[#64748b] uppercase tracking-wider font-bold">
+                <span className="text-[10px] text-[#64748b] uppercase tracking-wider font-bold">
                   Pending Submissions
                 </span>
                 <span className="text-3xl font-extrabold text-[#e11d48] mt-1 block">{needsReviewCount}</span>
@@ -390,7 +462,7 @@ const AdminConsole: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center gap-2 mt-4 text-xs">
-              <span className="px-2 py-0.5 rounded-full bg-[#fff1f2] text-[#e11d48] font-mono-tech text-[10px] font-bold flex items-center gap-1">
+              <span className="px-2 py-0.5 rounded-full bg-[#fff1f2] text-[#e11d48] text-[10px] font-bold flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#e11d48] animate-ping"></span>
                 {needsReviewCount > 0 ? 'ACTION NEEDED' : 'ALL VERIFIED'}
               </span>
@@ -409,7 +481,7 @@ const AdminConsole: React.FC = () => {
               <div className="flex flex-wrap gap-1 p-0.5 bg-[#f1f5f9] rounded-xl">
                 <button
                   onClick={() => setActiveCatalogTab('all')}
-                  className={`px-3.5 py-1.5 rounded-lg font-mono-tech text-xs font-bold transition-all ${
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
                     activeCatalogTab === 'all'
                       ? 'bg-white text-[#0f172a] shadow-xs'
                       : 'text-[#64748b] hover:text-[#0f172a]'
@@ -419,7 +491,7 @@ const AdminConsole: React.FC = () => {
                 </button>
                 <button
                   onClick={() => setActiveCatalogTab('review')}
-                  className={`px-3.5 py-1.5 rounded-lg font-mono-tech text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
                     activeCatalogTab === 'review'
                       ? 'bg-white text-[#0f172a] shadow-xs'
                       : 'text-[#64748b] hover:text-[#0f172a]'
@@ -432,7 +504,7 @@ const AdminConsole: React.FC = () => {
                 </button>
                 <button
                   onClick={() => setActiveCatalogTab('flagged')}
-                  className={`px-3.5 py-1.5 rounded-lg font-mono-tech text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
                     activeCatalogTab === 'flagged'
                       ? 'bg-white text-[#0f172a] shadow-xs'
                       : 'text-[#64748b] hover:text-[#0f172a]'
@@ -445,7 +517,7 @@ const AdminConsole: React.FC = () => {
                 </button>
                 <button
                   onClick={() => setActiveCatalogTab('gluten')}
-                  className={`px-3.5 py-1.5 rounded-lg font-mono-tech text-xs font-bold transition-all ${
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
                     activeCatalogTab === 'gluten'
                       ? 'bg-white text-[#0f172a] shadow-xs'
                       : 'text-[#64748b] hover:text-[#0f172a]'
@@ -455,12 +527,6 @@ const AdminConsole: React.FC = () => {
                 </button>
               </div>
 
-              <div className="flex items-center gap-2 text-xs text-[#64748b]">
-                <span>Sort by:</span>
-                <span className="font-mono-tech font-bold text-[#0f172a] bg-[#f1f5f9] px-2.5 py-1 rounded-md">
-                  Recent Submissions
-                </span>
-              </div>
             </div>
 
             {/* Moderation List Cards */}
@@ -481,17 +547,23 @@ const AdminConsole: React.FC = () => {
                         <div className="flex flex-wrap items-center gap-2">
                           <h3 className="text-sm font-bold text-[#0f172a]">{prod.name}</h3>
                           <span
-                            className={`px-2 py-0.5 rounded font-mono-tech text-[10px] font-bold uppercase ${
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
                               prod.isVerified
                                 ? 'bg-[#EEF2FF] text-[#5379EE]'
                                 : 'bg-[#fffbeb] text-[#d97706]'
                             }`}
                           >
-                            {prod.isVerified ? 'Commercial Verified' : 'Crowd Submission'}
+                            {prod.dataSource === 'Sample catalog'
+                              ? 'Sample data'
+                              : prod.isVerified
+                                ? 'Verified'
+                                : prod.dataSource
+                                  ? `Imported: ${prod.dataSource}`
+                                  : 'Unverified'}
                           </span>
                         </div>
                         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-[#64748b]">
-                          <span className="font-mono-tech text-[#0f172a] font-semibold">UPC: {prod.barcode}</span>
+                          <span className="text-[#0f172a] font-semibold">UPC: {prod.barcode}</span>
                           <span>•</span>
                           <span className="font-medium text-[#0f172a]">{prod.brand}</span>
                           <span>•</span>
@@ -502,14 +574,14 @@ const AdminConsole: React.FC = () => {
                           {prod.allergensDetected.map((a, i) => (
                             <span
                               key={i}
-                              className="px-2.5 py-0.5 rounded-full bg-[#fff1f2] text-[#e11d48] font-mono-tech text-[10px] font-bold flex items-center gap-1"
+                              className="px-2.5 py-0.5 rounded-full bg-[#fff1f2] text-[#e11d48] text-[10px] font-bold flex items-center gap-1"
                             >
                               <span className="material-symbols-outlined text-xs">warning</span>
                               <span>{a}</span>
                             </span>
                           ))}
-                          <span className="px-2.5 py-0.5 rounded-full bg-[#EEF2FF] text-[#5379EE] font-mono-tech text-[10px] font-bold">
-                            ✓ Score {prod.nutriScore}
+                          <span className="px-2.5 py-0.5 rounded-full bg-[#EEF2FF] text-[#5379EE] text-[10px] font-bold">
+                            {hasGap(prod, 'nutriScore') ? 'Nutri-Score not rated' : `Nutri-Score ${prod.nutriScore}`}
                           </span>
                         </div>
                       </div>
@@ -518,14 +590,22 @@ const AdminConsole: React.FC = () => {
                     {/* Actions */}
                     <div className="flex flex-row md:flex-col items-end justify-between gap-2 shrink-0">
                       {prod.userReportsCount && prod.userReportsCount > 0 ? (
-                        <div className="flex items-center gap-1 text-[#e11d48] font-mono-tech text-[10px] bg-[#fff1f2] px-2.5 py-1 rounded-full font-bold">
+                        <div className="flex items-center gap-1 text-[#e11d48] text-[10px] bg-[#fff1f2] px-2.5 py-1 rounded-full font-bold">
                           <span className="material-symbols-outlined text-xs">flag</span>
                           <span>{prod.userReportsCount} user reports pending</span>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-1 text-[#5379EE] font-mono-tech text-[10px] bg-[#EEF2FF] px-2.5 py-1 rounded-full font-bold">
-                          <span className="material-symbols-outlined text-xs">verified</span>
-                          <span>Auto-Audited Today</span>
+                        <div
+                          className={`flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-full font-bold ${
+                            prod.isVerified ? 'text-[#5379EE] bg-[#EEF2FF]' : 'text-[#d97706] bg-[#fffbeb]'
+                          }`}
+                        >
+                          <span className="material-symbols-outlined text-xs">{prod.isVerified ? 'verified' : 'pending'}</span>
+                          <span>
+                            {prod.isVerified
+                              ? 'Verified'
+                              : `Needs review${prod.dataGaps?.length ? ` • missing ${prod.dataGaps.join(', ')}` : ''}`}
+                          </span>
                         </div>
                       )}
 
@@ -535,7 +615,7 @@ const AdminConsole: React.FC = () => {
                             setSelectedProductId(prod.id);
                             setActiveTab('product-analysis');
                           }}
-                          className="px-3 py-1.5 rounded-full bg-[#f1f5f9] hover:bg-slate-200 text-[#0f172a] font-mono-tech text-xs font-bold transition-colors"
+                          className="px-3 py-1.5 rounded-full bg-[#f1f5f9] hover:bg-slate-200 text-[#0f172a] text-xs font-bold transition-colors"
                         >
                           Inspect Specs
                         </button>
@@ -544,7 +624,7 @@ const AdminConsole: React.FC = () => {
                             updateProduct({ ...prod, isVerified: true, moderationStatus: 'approved' });
                             showToast(`Verified & published ${prod.name}!`);
                           }}
-                          className="px-4 py-1.5 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white font-mono-tech text-xs font-bold transition-all shadow-xs"
+                          className="px-4 py-1.5 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white text-xs font-bold transition-all shadow-xs"
                         >
                           Verify &amp; Publish
                         </button>
@@ -573,14 +653,14 @@ const AdminConsole: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-[#5379EE] animate-pulse"></span>
-                  <h2 className="text-sm font-bold text-[#0f172a]">Live Radar Logs</h2>
+                  <h2 className="text-sm font-bold text-[#0f172a]">My Recent Scans</h2>
                 </div>
-                <span className="font-mono-tech text-[10px] px-2 py-0.5 rounded bg-[#EEF2FF] text-[#5379EE] font-bold">
-                  REAL-TIME
-                </span>
               </div>
 
               <div className="space-y-2.5">
+                {scanLogs.length === 0 && (
+                  <p className="text-xs text-[#64748b]">No scans on this account yet. User scan history is under the Users tab.</p>
+                )}
                 {scanLogs.slice(0, 4).map((log) => (
                   <div
                     key={log.id}
@@ -612,7 +692,7 @@ const AdminConsole: React.FC = () => {
                         {log.brand} • UPC: {log.barcode}
                       </p>
                       <span
-                        className={`font-mono-tech text-[10px] font-bold block mt-0.5 ${
+                        className={`text-[10px] font-bold block mt-0.5 ${
                           log.verdict === 'HAZARD'
                             ? 'text-[#e11d48]'
                             : log.verdict === 'WARNING'
@@ -627,12 +707,6 @@ const AdminConsole: React.FC = () => {
                 ))}
               </div>
 
-              <button
-                onClick={() => showToast('Opening live telemetry feed window.')}
-                className="w-full py-2.5 rounded-full bg-[#f1f5f9] hover:bg-slate-200 text-[#0f172a] font-mono-tech text-xs font-bold transition-colors text-center"
-              >
-                Stream Full Event Stream ({scanLogs.length} synced logs)
-              </button>
             </div>
 
             {/* Additive Policy Engine */}
@@ -640,7 +714,7 @@ const AdminConsole: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-sm font-bold text-[#0f172a]">Additive Policy Engine</h2>
-                  <p className="text-xs text-[#64748b]">Configure scanning risk rules &amp; E-Code alerts</p>
+                  <p className="text-xs text-[#64748b]">Products listing a switched-on additive show a warning when scanned</p>
                 </div>
                 <span className="material-symbols-outlined text-[#5379EE]">tune</span>
               </div>
@@ -655,7 +729,7 @@ const AdminConsole: React.FC = () => {
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="px-2 py-0.5 rounded bg-white text-[#5379EE] font-mono-tech font-bold text-[10px] border border-slate-200/50">
+                        <span className="px-2 py-0.5 rounded bg-white text-[#5379EE] font-bold text-[10px] border border-slate-200/50">
                           {policy.eCode}
                         </span>
                         <span className="text-xs font-bold text-[#0f172a]">{policy.name}</span>
@@ -675,24 +749,20 @@ const AdminConsole: React.FC = () => {
                       </button>
                     </div>
                     <p className="text-xs text-[#64748b] leading-relaxed">{policy.description}</p>
-                    <div className="flex items-center gap-1.5 text-[10px] text-[#5379EE] font-mono-tech font-bold">
+                    <div className="flex items-center gap-1.5 text-[10px] text-[#5379EE] font-bold">
                       <span className="material-symbols-outlined text-xs">
                         {policy.isEnforced ? 'check_circle' : 'pause_circle'}
                       </span>
-                      <span>{policy.statusText}</span>
+                      <span>
+                        {policy.isEnforced ? 'On' : 'Off'} • found in {productsWithAdditive(policy.eCode)} of {products.length}{' '}
+                        catalog products
+                      </span>
                     </div>
                   </div>
                 ))}
               </div>
 
-              <button
-                type="button"
-                onClick={() => showToast('Rules pushed to global edge nodes.')}
-                className="w-full py-3 rounded-full bg-[#0f172a] hover:bg-[#1e293b] text-white font-mono-tech text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2"
-              >
-                <span className="material-symbols-outlined text-sm">cloud_upload</span>
-                <span>Deploy Additive Matrix to Edge CDN</span>
-              </button>
+              <p className="text-[11px] text-[#64748b]">Changes take effect for all users as soon as you toggle them.</p>
             </div>
           </div>
         </div>
@@ -711,7 +781,7 @@ const AdminConsole: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-[#0f172a]">New Product Entry</h3>
-                  <p className="text-xs text-[#64748b]">Add verified item to global IngreGuide food catalog</p>
+                  <p className="text-xs text-[#64748b]">Only what you enter is saved. Missing details are shown as "not available".</p>
                 </div>
               </div>
               <button
@@ -725,7 +795,7 @@ const AdminConsole: React.FC = () => {
             <form onSubmit={handleCreateProduct} className="space-y-3.5">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="block font-mono-tech text-[11px] font-semibold text-[#1e293b]">Barcode (UPC/EAN)</label>
+                  <label className="block text-[11px] font-semibold text-[#1e293b]">Barcode (UPC/EAN)</label>
                   <input
                     type="text"
                     required
@@ -736,7 +806,7 @@ const AdminConsole: React.FC = () => {
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="block font-mono-tech text-[11px] font-semibold text-[#1e293b]">Nutri-Score</label>
+                  <label className="block text-[11px] font-semibold text-[#1e293b]">Nutri-Score</label>
                   <select
                     value={newNutriScore}
                     onChange={(e) => setNewNutriScore(e.target.value as any)}
@@ -752,30 +822,30 @@ const AdminConsole: React.FC = () => {
               </div>
 
               <div className="space-y-1">
-                <label className="block font-mono-tech text-[11px] font-semibold text-[#1e293b]">Product Title</label>
+                <label className="block text-[11px] font-semibold text-[#1e293b]">Product Title</label>
                 <input
                   type="text"
                   required
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  placeholder="e.g. PureSeed Ancient Grain & Flax Bar"
+                  placeholder="Product name as printed on the package"
                   className="w-full h-10 px-3 rounded-xl bg-[#f8fafc] border border-slate-200 text-xs text-[#0f172a] outline-none focus:border-[#5379EE]"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="block font-mono-tech text-[11px] font-semibold text-[#1e293b]">Brand / Maker</label>
+                  <label className="block text-[11px] font-semibold text-[#1e293b]">Brand / Maker</label>
                   <input
                     type="text"
                     value={newBrand}
                     onChange={(e) => setNewBrand(e.target.value)}
-                    placeholder="e.g. PureSeed Co."
+                    placeholder="Brand or manufacturer"
                     className="w-full h-10 px-3 rounded-xl bg-[#f8fafc] border border-slate-200 text-xs text-[#0f172a] outline-none focus:border-[#5379EE]"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="block font-mono-tech text-[11px] font-semibold text-[#1e293b]">Net Weight</label>
+                  <label className="block text-[11px] font-semibold text-[#1e293b]">Net Weight</label>
                   <input
                     type="text"
                     value={newWeight}
@@ -787,8 +857,8 @@ const AdminConsole: React.FC = () => {
               </div>
 
               <div className="space-y-1">
-                <label className="block font-mono-tech text-[11px] font-semibold text-[#1e293b]">
-                  Declared Allergens (comma separated)
+                <label className="block text-[11px] font-semibold text-[#1e293b]">
+                  Declared allergens (comma separated; leave blank to detect from the ingredient list)
                 </label>
                 <input
                   type="text"
@@ -800,7 +870,31 @@ const AdminConsole: React.FC = () => {
               </div>
 
               <div className="space-y-1">
-                <label className="block font-mono-tech text-[11px] font-semibold text-[#1e293b]">
+                <label className="block text-[11px] font-semibold text-[#1e293b]">Category</label>
+                <input
+                  type="text"
+                  value={newCategory}
+                  onChange={(e) => setNewCategory(e.target.value)}
+                  placeholder="e.g. Snacks, Beverages, Dairy"
+                  className="w-full h-10 px-3 rounded-xl bg-[#f8fafc] border border-slate-200 text-xs text-[#0f172a] outline-none focus:border-[#5379EE]"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-[11px] font-semibold text-[#1e293b]">
+                  Ingredient list (copy it from the package)
+                </label>
+                <textarea
+                  value={newIngredients}
+                  onChange={(e) => setNewIngredients(e.target.value)}
+                  rows={3}
+                  placeholder="e.g. Wheat flour, sugar, palm oil, cocoa powder, soy lecithin, salt"
+                  className="w-full px-3 py-2 rounded-xl bg-[#f8fafc] border border-slate-200 text-xs text-[#0f172a] outline-none focus:border-[#5379EE] leading-relaxed"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-[11px] font-semibold text-[#1e293b]">
                   Product Image URL (optional — auto-fetched if blank)
                 </label>
                 <input
@@ -815,14 +909,14 @@ const AdminConsole: React.FC = () => {
               <div className="flex gap-2.5 pt-3 border-t border-slate-100">
                 <button
                   type="submit"
-                  className="flex-1 h-11 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white font-mono-tech text-xs font-bold transition-all shadow-sm"
+                  className="flex-1 h-11 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white text-xs font-bold transition-all shadow-sm"
                 >
                   Publish to Catalog
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowNewModal(false)}
-                  className="px-5 h-11 rounded-full bg-slate-100 hover:bg-slate-200 text-[#0f172a] font-mono-tech text-xs font-bold transition-colors"
+                  className="px-5 h-11 rounded-full bg-slate-100 hover:bg-slate-200 text-[#0f172a] text-xs font-bold transition-colors"
                 >
                   Cancel
                 </button>

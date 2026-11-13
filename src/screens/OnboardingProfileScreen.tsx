@@ -11,25 +11,25 @@ interface RegimenOption {
 }
 
 const REGIMEN_OPTIONS: RegimenOption[] = [
-  { id: 'general', label: 'Balanced / Omnivore', description: 'Standard diet, focusing on clean label verification and additive transparency.', icon: 'restaurant' },
-  { id: 'vegetarian', label: 'Vegetarian', description: 'Excludes all meat, poultry, and fish derived ingredients and animal rennet.', icon: 'eco' },
-  { id: 'vegan', label: 'Vegan', description: 'Strict 100% plant-based: excludes gelatin, whey, casein, honey, and animal fats.', icon: 'spa' },
-  { id: 'pescatarian', label: 'Pescatarian', description: 'Vegetarian basis enriched with fish/crustaceans; avoids land meat & derivatives.', icon: 'phishing' },
-  { id: 'diabetic', label: 'Diabetic / Low Glycemic', description: 'Monitors added sugars, high glycemic starches, and artificial sweetening agents.', icon: 'monitor_heart' },
-  { id: 'low-sodium', label: 'Low Sodium (DASH)', description: 'Strict sodium threshold (<140mg/serving) for hypertension & cardiovascular safety.', icon: 'favorite' },
-  { id: 'keto', label: 'Keto / Low Carb', description: 'Prioritizes high healthy fats, flagging hidden starches, maltodextrin, and cane sugar.', icon: 'fitness_center' },
-  { id: 'halal', label: 'Halal Certified', description: 'Flags pork derivatives, non-halal gelatin, and alcohol carrier substances.', icon: 'verified' },
+  { id: 'general', label: 'Balanced / Omnivore', description: 'No dietary restrictions. Allergen and watchlist checks still apply.', icon: 'restaurant' },
+  { id: 'vegetarian', label: 'Vegetarian', description: 'Warns when a product lists meat, fish, shellfish, gelatin or rennet.', icon: 'eco' },
+  { id: 'vegan', label: 'Vegan', description: 'Warns when a product lists meat, fish, dairy, eggs, honey or gelatin.', icon: 'spa' },
+  { id: 'pescatarian', label: 'Pescatarian', description: 'Warns when a product lists meat, gelatin or other land-animal ingredients.', icon: 'phishing' },
+  { id: 'diabetic', label: 'Diabetic / Low Glycemic', description: 'Saved to your profile. No automatic check yet: review the sugar breakdown on each product.', icon: 'monitor_heart' },
+  { id: 'low-sodium', label: 'Low Sodium (DASH)', description: 'Warns when a product has more than 140 mg of sodium per serving.', icon: 'favorite' },
+  { id: 'keto', label: 'Keto / Low Carb', description: 'Saved to your profile. No automatic check yet: review the carbohydrates on each product.', icon: 'fitness_center' },
+  { id: 'halal', label: 'Halal', description: 'Warns when a product lists pork, gelatin or alcohol so you can check the source. It cannot confirm halal certification.', icon: 'verified' },
 ];
 
 const COMMON_WATCHLIST_PRESETS = [
-  { name: 'High Fructose Corn Syrup', category: 'Sugar & Caloric Sweeteners', desc: 'Metabolic liver stress & high glycemic impact' },
-  { name: 'Red Dye #40 (Allura AC / E129)', category: 'Synthetic Colorant', desc: 'Pediatric hyperactivity & allergen risk' },
-  { name: 'Monosodium Glutamate (E621)', category: 'Flavor Enhancer', desc: 'Glutamate sensitivity & headache trigger' },
-  { name: 'Sodium Nitrite (E250)', category: 'Cured Meat Preservative', desc: 'Carcinogenic nitrosamine formation risk' },
-  { name: 'Carrageenan (E407)', category: 'Industrial Thickener', desc: 'Gastrointestinal inflammation & mucosal disruption' },
-  { name: 'Aspartame (E951)', category: 'Artificial Sweetener', desc: 'PKU contraindication & neuro-excitatory flag' },
-  { name: 'Potassium Sorbate (E202)', category: 'Antimicrobial Preservative', desc: 'Contact allergy & mucous membrane sensitivity' },
-  { name: 'Partially Hydrogenated Oils', category: 'Industrial Trans Fat', desc: 'Cardiovascular risk & LDL elevation' },
+  { name: 'High Fructose Corn Syrup', category: 'Sugar & Caloric Sweeteners', desc: 'A common added sugar in soft drinks and snacks' },
+  { name: 'Red Dye #40 (Allura AC / E129)', category: 'Synthetic Colorant', desc: 'Synthetic red colour; carries a warning label in the EU' },
+  { name: 'Monosodium Glutamate (E621)', category: 'Flavor Enhancer', desc: 'Flavour enhancer some people prefer to avoid' },
+  { name: 'Sodium Nitrite (E250)', category: 'Cured Meat Preservative', desc: 'Curing salt used in processed meats' },
+  { name: 'Carrageenan (E407)', category: 'Industrial Thickener', desc: 'Seaweed-based thickener some people prefer to avoid' },
+  { name: 'Aspartame (E951)', category: 'Artificial Sweetener', desc: 'Sweetener that people with PKU must avoid' },
+  { name: 'Potassium Sorbate (E202)', category: 'Antimicrobial Preservative', desc: 'Common preservative' },
+  { name: 'Partially Hydrogenated Oils', category: 'Industrial Trans Fat', desc: 'Source of industrial trans fat' },
 ];
 
 export const OnboardingProfileScreen: React.FC = () => {
@@ -37,20 +37,17 @@ export const OnboardingProfileScreen: React.FC = () => {
 
   const [step, setStep] = useState<number>(1);
   const [selectedRegimens, setSelectedRegimens] = useState<string[]>(
-    userProfile.dietaryPreferences || ['Balanced / Omnivore']
+    userProfile.dietaryPreferences || []
   );
   const [allergensList, setAllergensList] = useState<AllergenItem[]>(userProfile.activeAllergens);
   const [selectedWatchlist, setSelectedWatchlist] = useState<string[]>(
-    userProfile.watchlist && userProfile.watchlist.length > 0
-      ? userProfile.watchlist
-      : ['High Fructose Corn Syrup', 'Red Dye #40 (Allura AC / E129)', 'Monosodium Glutamate (E621)']
+    userProfile.watchlist || []
   );
   const [customWatchItem, setCustomWatchItem] = useState('');
   const [sentryAlerts, setSentryAlerts] = useState({
     pushTakeover: userProfile.sentrySettings.pushTakeover ?? true,
     audibleTone: userProfile.sentrySettings.audibleTone ?? true,
     hapticPulse: userProfile.sentrySettings.hapticPulse ?? true,
-    caregiverDispatch: userProfile.sentrySettings.caregiverDispatch ?? false,
   });
   const [saving, setSaving] = useState(false);
 
@@ -133,10 +130,6 @@ export const OnboardingProfileScreen: React.FC = () => {
         <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-100 shadow-md mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
             <div>
-              <div className="inline-flex items-center gap-2 bg-[#EEF2FF] text-[#5379EE] px-3.5 py-1 rounded-full font-mono-tech text-xs font-bold uppercase tracking-wider mb-2">
-                <span className="w-2 h-2 rounded-full bg-[#5379EE] animate-pulse"></span>
-                <span>Post-Registration Profiling • IngreGuide RS-IV</span>
-              </div>
               <h1 className="text-2xl sm:text-3xl font-black text-[#0f172a] tracking-tight">
                 Personalize Your Food Safety Shield
               </h1>
@@ -146,7 +139,7 @@ export const OnboardingProfileScreen: React.FC = () => {
             </div>
 
             <div className="flex sm:flex-col items-end justify-between sm:justify-center gap-1 shrink-0">
-              <span className="font-mono-tech text-xs font-bold text-[#5379EE]">
+              <span className="text-xs font-bold text-[#5379EE]">
                 Step {step} of 4
               </span>
               <span className="text-[11px] text-[#94a3b8]">
@@ -183,14 +176,14 @@ export const OnboardingProfileScreen: React.FC = () => {
           <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-100 shadow-sm space-y-6 animate-in fade-in">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <span className="font-mono-tech text-xs text-[#5379EE] font-bold uppercase tracking-wider">
+                <span className="text-xs text-[#5379EE] font-bold uppercase tracking-wider">
                   Phase 1 of 4
                 </span>
                 <h2 className="text-xl sm:text-2xl font-bold text-[#0f172a] mt-1">
                   Select Your Dietary Regimens &amp; Goals
                 </h2>
                 <p className="text-xs sm:text-sm text-[#64748b] mt-1">
-                  Choose all dietary frameworks that apply. IngreGuide cross-checks barcode ingredients against these definitions.
+                  Choose any that apply. Each option says what the app checks for when you scan a product.
                 </p>
               </div>
               <span className="w-10 h-10 rounded-2xl bg-[#EEF2FF] text-[#5379EE] flex items-center justify-center shrink-0">
@@ -255,7 +248,7 @@ export const OnboardingProfileScreen: React.FC = () => {
           <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-100 shadow-sm space-y-6 animate-in fade-in">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <span className="font-mono-tech text-xs text-[#5379EE] font-bold uppercase tracking-wider">
+                <span className="text-xs text-[#5379EE] font-bold uppercase tracking-wider">
                   Phase 2 of 4
                 </span>
                 <h2 className="text-xl sm:text-2xl font-bold text-[#0f172a] mt-1">
@@ -276,21 +269,21 @@ export const OnboardingProfileScreen: React.FC = () => {
                 <span className="w-3 h-3 rounded-full bg-[#e11d48]"></span>
                 <div>
                   <p className="text-xs font-bold text-[#e11d48]">Tier 1: Anaphylactic</p>
-                  <p className="text-[10px] text-[#64748b]">Immediate full hazard alarm</p>
+                  <p className="text-[10px] text-[#64748b]">Full red alert, tone and vibration</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 <span className="w-3 h-3 rounded-full bg-[#d97706]"></span>
                 <div>
                   <p className="text-xs font-bold text-[#d97706]">Tier 2: Intolerance</p>
-                  <p className="text-[10px] text-[#64748b]">Digestive warning alert</p>
+                  <p className="text-[10px] text-[#64748b]">Amber warning</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 <span className="w-3 h-3 rounded-full bg-[#5379EE]"></span>
                 <div>
                   <p className="text-xs font-bold text-[#5379EE]">Tier 3: Sensitivity</p>
-                  <p className="text-[10px] text-[#64748b]">Informational soft badge</p>
+                  <p className="text-[10px] text-[#64748b]">Amber warning</p>
                 </div>
               </div>
             </div>
@@ -331,7 +324,7 @@ export const OnboardingProfileScreen: React.FC = () => {
                       <div className="min-w-0">
                         <h4 className="text-xs font-bold text-[#0f172a] truncate">{item.name}</h4>
                         <span
-                          className={`font-mono-tech text-[10px] font-bold ${
+                          className={`text-[10px] font-bold ${
                             item.active
                               ? item.tier === 1
                                 ? 'text-[#e11d48]'
@@ -357,11 +350,11 @@ export const OnboardingProfileScreen: React.FC = () => {
                   {/* Tier selector when active */}
                   {item.active && (
                     <div className="flex items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200/50">
-                      <span className="text-[10px] font-mono-tech text-[#64748b] mr-1">Tier:</span>
+                      <span className="text-[10px] text-[#64748b] mr-1">Tier:</span>
                       <button
                         type="button"
                         onClick={() => setTier(item.id, 1)}
-                        className={`px-2 py-0.5 rounded-full font-mono-tech text-[10px] font-bold transition-all ${
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-all ${
                           item.tier === 1
                             ? 'bg-[#e11d48] text-white shadow-xs'
                             : 'bg-white text-[#e11d48] border border-[#ffdad6]'
@@ -372,7 +365,7 @@ export const OnboardingProfileScreen: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setTier(item.id, 2)}
-                        className={`px-2 py-0.5 rounded-full font-mono-tech text-[10px] font-bold transition-all ${
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-all ${
                           item.tier === 2
                             ? 'bg-[#d97706] text-white shadow-xs'
                             : 'bg-white text-[#d97706] border border-[#fde68a]'
@@ -383,7 +376,7 @@ export const OnboardingProfileScreen: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setTier(item.id, 3)}
-                        className={`px-2 py-0.5 rounded-full font-mono-tech text-[10px] font-bold transition-all ${
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-all ${
                           item.tier === 3
                             ? 'bg-[#5379EE] text-white shadow-xs'
                             : 'bg-white text-[#5379EE] border border-[#C7D2FE]'
@@ -422,7 +415,7 @@ export const OnboardingProfileScreen: React.FC = () => {
           <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-100 shadow-sm space-y-6 animate-in fade-in">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <span className="font-mono-tech text-xs text-[#5379EE] font-bold uppercase tracking-wider">
+                <span className="text-xs text-[#5379EE] font-bold uppercase tracking-wider">
                   Phase 3 of 4
                 </span>
                 <h2 className="text-xl sm:text-2xl font-bold text-[#0f172a] mt-1">
@@ -457,8 +450,8 @@ export const OnboardingProfileScreen: React.FC = () => {
 
             {/* Common Presets Grid */}
             <div className="space-y-2">
-              <h3 className="font-mono-tech text-xs font-bold text-[#64748b] uppercase tracking-wider">
-                Common Clinical Targets (Tap to Toggle)
+              <h3 className="text-xs font-bold text-[#64748b] uppercase tracking-wider">
+                Common Choices (Tap to Toggle)
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {COMMON_WATCHLIST_PRESETS.map((item) => {
@@ -501,14 +494,14 @@ export const OnboardingProfileScreen: React.FC = () => {
 
             {/* Currently Active Watchlist Pills */}
             <div className="space-y-2 pt-2">
-              <h3 className="font-mono-tech text-xs font-bold text-[#64748b] uppercase tracking-wider">
+              <h3 className="text-xs font-bold text-[#64748b] uppercase tracking-wider">
                 Active Watchlist Chips ({selectedWatchlist.length})
               </h3>
               <div className="flex flex-wrap gap-2">
                 {selectedWatchlist.map((item) => (
                   <span
                     key={item}
-                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#e0e7ff] text-[#4338ca] font-mono-tech text-xs font-bold shadow-2xs"
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#e0e7ff] text-[#4338ca] text-xs font-bold shadow-2xs"
                   >
                     <span>{item}</span>
                     <button
@@ -548,7 +541,7 @@ export const OnboardingProfileScreen: React.FC = () => {
           <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-100 shadow-sm space-y-6 animate-in fade-in">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <span className="font-mono-tech text-xs text-[#5379EE] font-bold uppercase tracking-wider">
+                <span className="text-xs text-[#5379EE] font-bold uppercase tracking-wider">
                   Phase 4 of 4
                 </span>
                 <h2 className="text-xl sm:text-2xl font-bold text-[#0f172a] mt-1">
@@ -573,7 +566,7 @@ export const OnboardingProfileScreen: React.FC = () => {
                   <div>
                     <h4 className="text-xs font-bold text-[#0f172a]">Audible Acoustic Alarm Tone</h4>
                     <p className="text-[11px] text-[#64748b]">
-                      Emits high-frequency dual chime immediately when an anaphylactic conflict is scanned.
+                      Plays a two-beep warning tone when a scanned product contains one of your allergens.
                     </p>
                   </div>
                 </div>
@@ -581,7 +574,7 @@ export const OnboardingProfileScreen: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => sensoryEngine.playHazardTone()}
-                    className="text-[11px] font-mono-tech font-bold text-[#5379EE] hover:underline"
+                    className="text-[11px] font-bold text-[#5379EE] hover:underline"
                   >
                     Test Tone
                   </button>
@@ -603,7 +596,7 @@ export const OnboardingProfileScreen: React.FC = () => {
                   <div>
                     <h4 className="text-xs font-bold text-[#0f172a]">Haptic Vibration Pulse</h4>
                     <p className="text-[11px] text-[#64748b]">
-                      Triple vibration pattern (400ms-200ms-400ms) on mobile browsers and supported hardware.
+                      Three-pulse vibration on phones and browsers that support it.
                     </p>
                   </div>
                 </div>
@@ -611,7 +604,7 @@ export const OnboardingProfileScreen: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => sensoryEngine.triggerHaptic()}
-                    className="text-[11px] font-mono-tech font-bold text-[#5379EE] hover:underline"
+                    className="text-[11px] font-bold text-[#5379EE] hover:underline"
                   >
                     Test Haptic
                   </button>
@@ -633,7 +626,7 @@ export const OnboardingProfileScreen: React.FC = () => {
                   <div>
                     <h4 className="text-xs font-bold text-[#0f172a]">Full-Screen Push Takeover Modal</h4>
                     <p className="text-[11px] text-[#64748b]">
-                      Prevents unintentional consumption by locking scanner with a high-contrast hazard modal.
+                      Shows a full-screen red warning when a scanned product contains one of your allergens.
                     </p>
                   </div>
                 </div>
@@ -645,50 +638,30 @@ export const OnboardingProfileScreen: React.FC = () => {
                 />
               </div>
 
-              {/* Sentry Setting 4: Caregiver Dispatch */}
-              <div className="flex items-center justify-between p-4 rounded-2xl bg-[#f8fafc] border border-slate-200/80">
-                <div className="flex items-center gap-3.5">
-                  <div className="w-9 h-9 rounded-xl bg-[#EEF2FF] text-[#5379EE] flex items-center justify-center shrink-0">
-                    <span className="material-symbols-outlined text-lg">medical_services</span>
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-[#0f172a]">Emergency Caregiver Alert Dispatch</h4>
-                    <p className="text-[11px] text-[#64748b]">
-                      Transmits notification with barcode coordinates to registered emergency contact.
-                    </p>
-                  </div>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={sentryAlerts.caregiverDispatch}
-                  onChange={(e) => setSentryAlerts({ ...sentryAlerts, caregiverDispatch: e.target.checked })}
-                  className="w-4 h-4 rounded text-[#5379EE] accent-[#5379EE] cursor-pointer"
-                />
-              </div>
             </div>
 
             {/* Profile Summary Card */}
             <div className="bg-[#f0f3ff] p-5 rounded-2xl border border-[#dae2fd]/60 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="font-mono-tech text-xs text-[#5379EE] font-bold uppercase tracking-wider">
-                  Bio-Shield Summary
+                <span className="text-xs text-[#5379EE] font-bold uppercase tracking-wider">
+                  Profile Summary
                 </span>
                 <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#2563EB] bg-white px-2.5 py-0.5 rounded-full border border-blue-200">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#5379EE]"></span>
-                  Ready to Sync
+                  Ready to Save
                 </span>
               </div>
               <div className="grid grid-cols-3 gap-2 text-center">
                 <div className="bg-white p-2.5 rounded-xl border border-slate-100">
-                  <p className="text-[10px] text-[#64748b] font-mono-tech">Regimens</p>
+                  <p className="text-[10px] text-[#64748b]">Regimens</p>
                   <p className="font-bold text-sm text-[#0f172a]">{selectedRegimens.length}</p>
                 </div>
                 <div className="bg-white p-2.5 rounded-xl border border-slate-100">
-                  <p className="text-[10px] text-[#64748b] font-mono-tech">Active Allergens</p>
+                  <p className="text-[10px] text-[#64748b]">Active Allergens</p>
                   <p className="font-bold text-sm text-[#0f172a]">{activeAllergenCount}</p>
                 </div>
                 <div className="bg-white p-2.5 rounded-xl border border-slate-100">
-                  <p className="text-[10px] text-[#64748b] font-mono-tech">Watchlist Targets</p>
+                  <p className="text-[10px] text-[#64748b]">Watchlist Targets</p>
                   <p className="font-bold text-sm text-[#0f172a]">{selectedWatchlist.length}</p>
                 </div>
               </div>
@@ -714,12 +687,12 @@ export const OnboardingProfileScreen: React.FC = () => {
                 {saving ? (
                   <>
                     <span className="material-symbols-outlined text-sm animate-spin">refresh</span>
-                    <span>Saving to Cloud Health Vault...</span>
+                    <span>Saving…</span>
                   </>
                 ) : (
                   <>
                     <span className="material-symbols-outlined text-base">verified_user</span>
-                    <span>Activate Shield &amp; Enter IngreGuide</span>
+                    <span>Save Profile &amp; Continue</span>
                   </>
                 )}
               </button>

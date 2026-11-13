@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { sensoryEngine } from '../utils/soundEffects';
+import { ALLERGEN_DEFS, MONITORED_TERM_COUNT, tierLabelFor } from '../utils/allergens';
 
 export const AllergenRadarScreen: React.FC = () => {
   const {
@@ -11,17 +12,11 @@ export const AllergenRadarScreen: React.FC = () => {
     toggleSentrySetting,
     updateUserProfile,
     scanLogs,
-    products,
+    isLoggedIn,
   } = useApp();
 
-  const latestHazardScan = scanLogs.find((l) => l.verdict === 'HAZARD' || l.verdict === 'WARNING');
-  const fallbackHazardProduct = products.find((p) => p.allergensDetected.length > 0) || products[0];
-  const alertPreviewTitle = latestHazardScan?.productName || fallbackHazardProduct?.name || 'Flagged Product';
-  const alertPreviewAllergens =
-    latestHazardScan?.allergensMatched?.length
-      ? latestHazardScan.allergensMatched
-      : fallbackHazardProduct?.allergensDetected || ['Peanuts', 'Gluten'];
-  const alertPreviewConfidence = latestHazardScan?.confidence || 99.8;
+  /** Most recent scan that raised a warning or hazard for this user (none until one happens). */
+  const latestAlert = scanLogs.find((l) => l.verdict === 'HAZARD' || l.verdict === 'WARNING');
 
   const [customInput, setCustomInput] = useState('');
   const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
@@ -35,16 +30,22 @@ export const AllergenRadarScreen: React.FC = () => {
   };
 
   const handleSaveAndSync = async () => {
-    setSyncFeedback('Synchronizing with Cloud Health Vault...');
+    setSyncFeedback('Saving…');
     try {
-      await updateUserProfile({
-        lastSynced: 'Just now',
-      });
-      setSyncFeedback('Saved & Synchronized to Cloud!');
+      await updateUserProfile({ lastSynced: new Date().toLocaleString() });
+      setSyncFeedback(isLoggedIn ? 'Saved to your account' : 'Saved on this device');
     } catch {
-      setSyncFeedback('Saved locally (Offline Mode)');
+      setSyncFeedback('Saved on this device only');
     }
     setTimeout(() => setSyncFeedback(null), 3000);
+  };
+
+  const setAllergenTier = (id: string, tier: 1 | 2 | 3) => {
+    updateUserProfile({
+      activeAllergens: userProfile.activeAllergens.map((item) =>
+        item.id === id ? { ...item, tier, tierLabel: tierLabelFor(tier) } : item
+      ),
+    });
   };
 
   const activeAllergens = userProfile.activeAllergens;
@@ -55,13 +56,7 @@ export const AllergenRadarScreen: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
         {/* Breadcrumb & Top Bar */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-1.5 font-mono-tech text-xs text-[#64748b]">
-            <span className="hover:text-[#0f172a]">Settings</span>
-            <span>&gt;</span>
-            <span className="hover:text-[#0f172a]">Safety Profiles</span>
-            <span>&gt;</span>
-            <span className="text-[#5379EE] font-bold">Allergen Radar &amp; Safety Sentry</span>
-          </div>
+          <span className="text-xs text-[#5379EE] font-bold">Allergen Radar</span>
 
           <div className="flex items-center gap-3">
             <span className="text-xs text-[#64748b] hidden sm:inline">
@@ -74,11 +69,11 @@ export const AllergenRadarScreen: React.FC = () => {
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
           <div className="max-w-3xl space-y-1">
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#0f172a] tracking-tight">
-              Personal Allergen Radar &amp; Sensory Alert Engine
+              Your Allergen Radar &amp; Alerts
             </h1>
             <p className="text-xs sm:text-sm text-[#565e74] leading-relaxed">
-              Configure physiological sensitivities, cross-reactivity threshold tiers, and real-time sensory alarms for
-              zero-hesitation supermarket scanning.
+              Switch on the allergens you need to avoid, set how serious each one is for you, and choose how the app
+              warns you when a scanned product contains them.
             </p>
           </div>
 
@@ -88,8 +83,12 @@ export const AllergenRadarScreen: React.FC = () => {
               <span className="material-symbols-outlined text-2xl">verified_user</span>
             </div>
             <div>
-              <div className="text-base font-bold text-[#0f172a]">{activeCount} Active Targets</div>
-              <div className="text-xs text-[#64748b]">1,248 Derivations Monitored</div>
+              <div className="text-base font-bold text-[#0f172a]">
+                {activeCount} {activeCount === 1 ? 'allergen' : 'allergens'} switched on
+              </div>
+              <div className="text-xs text-[#64748b]">
+                {MONITORED_TERM_COUNT} ingredient names recognised across {ALLERGEN_DEFS.length} allergens
+              </div>
             </div>
           </div>
         </div>
@@ -106,18 +105,18 @@ export const AllergenRadarScreen: React.FC = () => {
                     <span className="material-symbols-outlined text-[#5379EE] text-lg">shield</span>
                     <h2 className="text-base font-bold text-[#0f172a]">Active Allergen Radar</h2>
                   </div>
-                  <p className="text-xs text-[#64748b]">Click any chip to toggle monitoring state and calibrate clinical tolerance.</p>
+                  <p className="text-xs text-[#64748b]">Tap an allergen to switch it on or off. Use the menu to set how serious it is for you.</p>
                 </div>
 
                 {/* Severity Legend */}
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#fff1f2] text-[#e11d48] font-mono-tech text-[10px] font-bold">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#fff1f2] text-[#e11d48] text-[10px] font-bold">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#e11d48]"></span> Anaphylactic
                   </span>
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#fffbeb] text-[#d97706] font-mono-tech text-[10px] font-bold">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#fffbeb] text-[#d97706] text-[10px] font-bold">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#d97706]"></span> Intolerance
                   </span>
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#EEF2FF] text-[#2563EB] font-mono-tech text-[10px] font-bold">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#EEF2FF] text-[#2563EB] text-[10px] font-bold">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#5379EE]"></span> Sensitivity
                   </span>
                 </div>
@@ -156,7 +155,7 @@ export const AllergenRadarScreen: React.FC = () => {
                       <div className="min-w-0">
                         <div className="text-xs font-bold text-[#0f172a] truncate">{item.name}</div>
                         <div
-                          className={`font-mono-tech text-[10px] font-semibold uppercase ${
+                          className={`text-[10px] font-semibold uppercase ${
                             item.tier === 1
                               ? 'text-[#e11d48]'
                               : item.tier === 2
@@ -164,24 +163,29 @@ export const AllergenRadarScreen: React.FC = () => {
                               : 'text-[#2563EB]'
                           }`}
                         >
-                          Tier {item.tier} • {item.tierLabel}
+                          {item.active ? 'On' : `Default: ${item.tierLabel}`}
                         </div>
                       </div>
                     </div>
 
-                    <span
-                      className={`font-mono-tech text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
-                        item.active
-                          ? item.tier === 1
-                            ? 'bg-[#e11d48] text-white'
-                            : item.tier === 2
-                            ? 'bg-[#d97706] text-white'
-                            : 'bg-[#5379EE] text-white'
-                          : 'bg-slate-200 text-[#64748b]'
-                      }`}
-                    >
-                      {item.active ? 'ACTIVE' : 'OFF'}
-                    </span>
+                    {item.active && (
+                      <select
+                        value={item.tier}
+                        aria-label={`Severity for ${item.name}`}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => setAllergenTier(item.id, Number(e.target.value) as 1 | 2 | 3)}
+                        className="h-7 px-1.5 mr-1.5 rounded-lg bg-white border border-slate-200 text-[10px] font-bold text-[#0f172a] shrink-0 cursor-pointer"
+                      >
+                        <option value={1}>Anaphylactic</option>
+                        <option value={2}>Intolerance</option>
+                        <option value={3}>Sensitivity</option>
+                      </select>
+                    )}
+                    {!item.active && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 bg-slate-200 text-[#64748b]">
+                        OFF
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>
@@ -194,8 +198,7 @@ export const AllergenRadarScreen: React.FC = () => {
                 <h2 className="text-base font-bold text-[#0f172a]">Chemical &amp; E-Number Watchlist</h2>
               </div>
               <p className="text-xs text-[#64748b]">
-                Block artificial food colorants, emulsifiers, synthetic preservatives, and non-caloric sweeteners across
-                ingredient statements.
+                Add any ingredient or E-number you want to avoid. A scanned product that lists it shows a warning.
               </p>
 
               {/* Input Bar */}
@@ -214,7 +217,7 @@ export const AllergenRadarScreen: React.FC = () => {
                 </div>
                 <button
                   type="submit"
-                  className="w-full sm:w-auto h-11 px-6 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white font-mono-tech text-xs font-bold transition-all shadow-xs shrink-0 flex items-center justify-center gap-1.5"
+                  className="w-full sm:w-auto h-11 px-6 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white text-xs font-bold transition-all shadow-xs shrink-0 flex items-center justify-center gap-1.5"
                 >
                   <span className="material-symbols-outlined text-base">add</span>
                   <span>Add to Watchlist</span>
@@ -223,10 +226,13 @@ export const AllergenRadarScreen: React.FC = () => {
 
               {/* Watchlist Badges Flow */}
               <div className="flex flex-wrap items-center gap-2 pt-1">
+                {userProfile.watchlist.length === 0 && (
+                  <span className="text-xs text-[#64748b]">Your watchlist is empty.</span>
+                )}
                 {userProfile.watchlist.map((item, idx) => (
                   <span
                     key={idx}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#f1f5f9] text-[#1e293b] font-mono-tech text-xs font-medium border border-slate-200/50"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#f1f5f9] text-[#1e293b] text-xs font-medium border border-slate-200/50"
                   >
                     <span className="w-2 h-2 rounded-full bg-[#5379EE]"></span>
                     <span>{item}</span>
@@ -242,53 +248,51 @@ export const AllergenRadarScreen: React.FC = () => {
               </div>
             </section>
 
-            {/* Section 3: Simulated Live Alert Preview */}
+            {/* Section 3: the user's most recent real alert */}
             <section className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-100 shadow-xs space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[#e11d48] text-lg">sensors</span>
-                    <h2 className="text-base font-bold text-[#0f172a]">Simulated Real-Time Alert Preview</h2>
-                  </div>
-                  <p className="text-xs text-[#64748b]">How your handheld scanner visualizes immediate hazard detections.</p>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[#e11d48] text-lg">sensors</span>
+                  <h2 className="text-base font-bold text-[#0f172a]">Latest Alert</h2>
                 </div>
-                <span className="font-mono-tech text-[10px] px-2.5 py-1 bg-slate-100 rounded-full text-[#64748b] uppercase font-bold">
-                  Scan Sandbox
-                </span>
+                <p className="text-xs text-[#64748b]">The most recent scan that raised a warning for your profile.</p>
               </div>
 
-              {/* Alert Banner Box */}
-              <div className="rounded-2xl bg-[#fff1f2] p-5 border border-[#ffdad6] relative overflow-hidden">
-                <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-[#e11d48]"></div>
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              {latestAlert ? (
+                <div
+                  className={`rounded-2xl p-5 border relative overflow-hidden ${
+                    latestAlert.verdict === 'HAZARD' ? 'bg-[#fff1f2] border-[#ffdad6]' : 'bg-[#fffbeb] border-[#fde68a]'
+                  }`}
+                >
+                  <div
+                    className={`absolute left-0 top-0 bottom-0 w-1.5 ${
+                      latestAlert.verdict === 'HAZARD' ? 'bg-[#e11d48]' : 'bg-[#d97706]'
+                    }`}
+                  ></div>
                   <div className="flex items-start gap-3.5">
-                    <div className="w-10 h-10 rounded-full bg-[#e11d48] flex items-center justify-center text-white shrink-0 shadow-sm animate-pulse">
-                      <span className="material-symbols-outlined text-xl">error</span>
+                    <div
+                      className={`w-10 h-10 rounded-full flex items-center justify-center text-white shrink-0 shadow-sm ${
+                        latestAlert.verdict === 'HAZARD' ? 'bg-[#e11d48]' : 'bg-[#d97706]'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-xl">
+                        {latestAlert.verdict === 'HAZARD' ? 'error' : 'warning'}
+                      </span>
                     </div>
-                    <div>
-                      <div className="font-mono-tech text-[10px] uppercase font-bold text-[#e11d48] tracking-wider mb-0.5">
-                        CRITICAL MATCH • INSTANT HAZARD LOCKOUT
-                      </div>
-                      <h3 className="text-sm font-bold text-[#0f172a]">“{alertPreviewTitle}”</h3>
-                      <p className="text-xs text-[#64748b] mt-0.5">
-                        Contains{' '}
-                        <span className="font-bold text-[#e11d48] underline">
-                          {alertPreviewAllergens.join(' & ')}
-                        </span>
-                        . Immediate physiological risk flag for <strong>{userProfile.displayName}</strong>.
+                    <div className="min-w-0">
+                      <h3 className="text-sm font-bold text-[#0f172a]">{latestAlert.productName}</h3>
+                      <p className="text-xs text-[#1e293b] mt-0.5">{latestAlert.verdictLabel}</p>
+                      <p className="text-[11px] text-[#64748b] mt-1">
+                        {latestAlert.brand} • Barcode {latestAlert.barcode} • {latestAlert.timestamp}
                       </p>
                     </div>
                   </div>
-                  <div className="flex sm:flex-col items-center gap-1 shrink-0 self-end sm:self-center">
-                    <span className="px-3 py-1 rounded-full bg-[#e11d48] text-white font-mono-tech text-[10px] font-bold uppercase tracking-wider">
-                      DO NOT INGEST
-                    </span>
-                    <span className="font-mono-tech text-[10px] text-[#64748b]">
-                      Match Confidence: {alertPreviewConfidence}%
-                    </span>
-                  </div>
                 </div>
-              </div>
+              ) : (
+                <p className="text-xs text-[#64748b] bg-[#f8fafc] rounded-2xl p-4 border border-slate-100">
+                  No alerts yet. When a scanned product conflicts with your profile it will appear here.
+                </p>
+              )}
             </section>
           </div>
 
@@ -300,7 +304,7 @@ export const AllergenRadarScreen: React.FC = () => {
                 <span className="material-symbols-outlined text-[#5379EE] text-lg">vibration</span>
                 <h2 className="text-base font-bold text-[#0f172a]">Scan Sentry Feedback</h2>
               </div>
-              <p className="text-xs text-[#64748b]">Hardware triggers designed for high-distraction, crowded grocery aisles.</p>
+              <p className="text-xs text-[#64748b]">How the app warns you when a scanned product conflicts with your profile.</p>
 
               {/* Toggles */}
               <div className="space-y-3">
@@ -309,9 +313,9 @@ export const AllergenRadarScreen: React.FC = () => {
                   <div className="flex items-start gap-2.5">
                     <span className="material-symbols-outlined text-[#e11d48] text-lg mt-0.5">fullscreen</span>
                     <div>
-                      <div className="text-xs font-bold text-[#0f172a]">Push Screen Takeover</div>
+                      <div className="text-xs font-bold text-[#0f172a]">Full-Screen Warning</div>
                       <div className="text-[11px] text-[#64748b] leading-relaxed">
-                        Forceful red modal lock preventing accidental dismissals upon severe allergen detection.
+                        Shows a full-screen red warning when a scanned product contains one of your allergens.
                       </div>
                     </div>
                   </div>
@@ -335,9 +339,9 @@ export const AllergenRadarScreen: React.FC = () => {
                   <div className="flex items-start gap-2.5">
                     <span className="material-symbols-outlined text-[#d97706] text-lg mt-0.5">volume_up</span>
                     <div>
-                      <div className="text-xs font-bold text-[#0f172a]">Audible Hazard Piercing Tone</div>
+                      <div className="text-xs font-bold text-[#0f172a]">Warning Tone</div>
                       <div className="text-[11px] text-[#64748b] leading-relaxed">
-                        Distinctive high-frequency dual-beep audible over supermarket background noise.
+                        Plays a two-beep warning tone when a scanned product contains one of your allergens.
                       </div>
                     </div>
                   </div>
@@ -364,9 +368,9 @@ export const AllergenRadarScreen: React.FC = () => {
                   <div className="flex items-start gap-2.5">
                     <span className="material-symbols-outlined text-[#5379EE] text-lg mt-0.5">phonelink_ring</span>
                     <div>
-                      <div className="text-xs font-bold text-[#0f172a]">Triple Haptic Pulse Sequence</div>
+                      <div className="text-xs font-bold text-[#0f172a]">Vibration</div>
                       <div className="text-[11px] text-[#64748b] leading-relaxed">
-                        Rhythmic vibration pattern triggered through smartphone &amp; connected smartwatch.
+                        Vibrates the phone in a three-pulse pattern, on devices and browsers that support vibration.
                       </div>
                     </div>
                   </div>
@@ -388,85 +392,46 @@ export const AllergenRadarScreen: React.FC = () => {
                   </button>
                 </div>
 
-                {/* Toggle 4: Caregiver Emergency Dispatch */}
-                <div className="flex items-start justify-between gap-3 p-3.5 rounded-2xl bg-[#f8fafc] border border-slate-100">
-                  <div className="flex items-start gap-2.5">
-                    <span className="material-symbols-outlined text-[#64748b] text-lg mt-0.5">sms</span>
-                    <div>
-                      <div className="text-xs font-bold text-[#0f172a]">Caregiver Emergency Dispatch</div>
-                      <div className="text-[11px] text-[#64748b] leading-relaxed">
-                        Send automated GPS coordinates and scanned product data if scanned while shopping solo.
-                      </div>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => toggleSentrySetting('caregiverDispatch')}
-                    className={`w-11 h-6 rounded-full p-0.5 transition-colors shrink-0 cursor-pointer ${
-                      userProfile.sentrySettings.caregiverDispatch ? 'bg-[#5379EE]' : 'bg-slate-300'
-                    }`}
-                  >
-                    <div
-                      className={`w-5 h-5 rounded-full bg-white shadow-xs transition-transform ${
-                        userProfile.sentrySettings.caregiverDispatch ? 'translate-x-5' : 'translate-x-0'
-                      }`}
-                    ></div>
-                  </button>
-                </div>
               </div>
             </section>
 
-            {/* Regulatory Standards Compliance Badge */}
+            {/* What the radar covers */}
             <section className="bg-gradient-to-br from-[#eef2ff] to-[#e0e7ff] rounded-3xl p-6 border border-[#c7d2fe] space-y-3 shadow-xs">
-              <div className="flex items-center gap-1.5 font-mono-tech text-xs text-[#5379EE] font-bold uppercase tracking-widest">
-                <span className="material-symbols-outlined text-base">verified</span>
-                <span>Scientific Data Integrity</span>
-              </div>
-              <h3 className="text-sm font-bold text-[#0f172a]">Regulatory Standards Synchronized</h3>
+              <h3 className="text-sm font-bold text-[#0f172a]">What the radar checks</h3>
               <p className="text-xs text-[#565e74] leading-relaxed">
-                IngreGuide algorithms continuously ingest and validate against the <strong>FDA Food Allergen Labeling &amp; Consumer Protection Act (FALCPA)</strong> and <strong>EU Regulation 1169/2011 (FIC)</strong>, monitoring cross-contamination declarations and over 1,200 hidden nomenclature derivatives.
+                IngreGuide looks for {MONITORED_TERM_COUNT} ingredient names across {ALLERGEN_DEFS.length} allergens in
+                a product&apos;s ingredient list and allergen statement. The list covers the nine major allergens in US
+                law (FALCPA and the FASTER Act) and the fourteen allergens in EU Regulation 1169/2011 (crustaceans and molluscs are grouped as shellfish).
               </p>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="bg-white p-2.5 rounded-xl flex items-center gap-1.5 shadow-xs">
-                  <span className="material-symbols-outlined text-[#5379EE] text-base">check_circle</span>
-                  <span className="font-semibold text-[11px]">FDA 9 Allergens</span>
-                </div>
-                <div className="bg-white p-2.5 rounded-xl flex items-center gap-1.5 shadow-xs">
-                  <span className="material-symbols-outlined text-[#5379EE] text-base">check_circle</span>
-                  <span className="font-semibold text-[11px]">EU 14 Mandatory</span>
-                </div>
-                <div className="bg-white p-2.5 rounded-xl flex items-center gap-1.5 shadow-xs">
-                  <span className="material-symbols-outlined text-[#5379EE] text-base">check_circle</span>
-                  <span className="font-semibold text-[11px]">Advisory (PAL)</span>
-                </div>
-                <div className="bg-white p-2.5 rounded-xl flex items-center gap-1.5 shadow-xs">
-                  <span className="material-symbols-outlined text-[#5379EE] text-base">check_circle</span>
-                  <span className="font-semibold text-[11px]">Codex Rules</span>
-                </div>
-              </div>
+              <p className="text-xs text-[#565e74] leading-relaxed">
+                &ldquo;May contain&rdquo; statements are shown as warnings. The check is only as good as the ingredient
+                data on record, so always read the package label, especially for severe allergies.
+              </p>
             </section>
 
             {/* Save Profile Master Action Card */}
             <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-3">
               <div className="flex items-center justify-between">
-                <span className="font-mono-tech text-xs text-[#64748b]">Cloud Sync Status:</span>
-                <span className="inline-flex items-center gap-1 font-mono-tech text-xs text-[#5379EE] font-bold">
-                  <span className="w-2 h-2 rounded-full bg-[#5379EE] animate-pulse"></span>
-                  All Synced to Mobile App
+                <span className="text-xs text-[#64748b]">Where this is saved:</span>
+                <span className="text-xs text-[#0f172a] font-bold">
+                  {isLoggedIn ? 'Your IngreGuide account' : 'This device only'}
                 </span>
               </div>
 
               <button
                 type="button"
                 onClick={handleSaveAndSync}
-                className="w-full h-12 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white font-mono-tech text-xs font-bold transition-all shadow-[0_4px_16px_rgba(83,121,238,0.3)] flex items-center justify-center gap-2 active:scale-[0.98]"
+                className="w-full h-12 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white text-xs font-bold transition-all shadow-[0_4px_16px_rgba(83,121,238,0.3)] flex items-center justify-center gap-2 active:scale-[0.98]"
               >
                 <span className="material-symbols-outlined text-lg">cloud_sync</span>
-                <span>{syncFeedback || 'Save & Synchronize Allergen Profile'}</span>
+                <span>{syncFeedback || 'Save Allergen Profile'}</span>
               </button>
 
               <p className="text-[11px] text-center text-[#64748b]">
-                Last modified {userProfile.lastSynced || '14 minutes ago'} • Encrypted with zero-knowledge health vaults
+                Changes are saved automatically as you make them.
+                {userProfile.lastSynced && userProfile.lastSynced !== 'Just now'
+                  ? ` Last saved ${userProfile.lastSynced}.`
+                  : ''}
               </p>
             </div>
           </div>

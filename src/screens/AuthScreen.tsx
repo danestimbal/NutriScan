@@ -187,14 +187,14 @@ export const AuthScreen: React.FC = () => {
                         <h3 className="font-sans font-black text-lg tracking-tight leading-none">
                           IngreGuide
                         </h3>
-                        <span className="px-2 py-0.5 rounded-full bg-white/20 text-white font-mono-tech text-[10px] font-bold border border-white/30">
-                          BIO-SHIELD ID
+                        <span className="px-2 py-0.5 rounded-full bg-white/20 text-white text-[10px] font-bold border border-white/30">
+                          ACCOUNT
                         </span>
                       </div>
                       <p className="text-[11px] text-blue-100 mt-1">
                         {authMode === 'login'
-                          ? 'Sign in to sync your allergen radar & scan telemetry.'
-                          : 'Create your encrypted nutritional bio-shield profile.'}
+                          ? 'Sign in to use your saved allergen profile and scan history.'
+                          : 'Create an account to save your allergen profile.'}
                       </p>
                     </div>
                   </div>
@@ -220,7 +220,7 @@ export const AuthScreen: React.FC = () => {
                       setErrorMessage(null);
                       setSuccessMessage(null);
                     }}
-                    className={`flex-1 py-2 rounded-xl font-mono-tech text-xs font-bold transition-all cursor-pointer ${
+                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                       authMode === 'login'
                         ? 'bg-[#2563EB] text-white shadow-xs'
                         : 'text-[#475569] hover:text-[#1E293B]'
@@ -235,7 +235,7 @@ export const AuthScreen: React.FC = () => {
                       setErrorMessage(null);
                       setSuccessMessage(null);
                     }}
-                    className={`flex-1 py-2 rounded-xl font-mono-tech text-xs font-bold transition-all cursor-pointer ${
+                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                       authMode === 'create'
                         ? 'bg-[#2563EB] text-white shadow-xs'
                         : 'text-[#475569] hover:text-[#1E293B]'
@@ -347,7 +347,7 @@ export const AuthScreen: React.FC = () => {
                     {loading ? (
                       <span className="material-symbols-outlined text-lg animate-spin">refresh</span>
                     ) : (
-                      <span>{authMode === 'login' ? 'Sign In to IngreGuide' : 'Create Bio-Shield Account'}</span>
+                      <span>{authMode === 'login' ? 'Sign In to IngreGuide' : 'Create Account'}</span>
                     )}
                   </button>
                 </form>
@@ -355,7 +355,7 @@ export const AuthScreen: React.FC = () => {
                 {/* Divider */}
                 <div className="relative flex items-center justify-center my-5">
                   <div className="w-full h-px bg-slate-200"></div>
-                  <span className="absolute bg-white px-3 text-[11px] text-slate-400 font-mono-tech uppercase">
+                  <span className="absolute bg-white px-3 text-[11px] text-slate-400 uppercase">
                     or continue with
                   </span>
                 </div>
@@ -424,8 +424,8 @@ export const AuthScreen: React.FC = () => {
                     verified_user
                   </span>
                   <p className="text-[11px] text-[#64748B] leading-relaxed">
-                    <strong className="text-[#1E293B]">RA 10173 Data Privacy Act Compliant:</strong> Personal allergen
-                    profiles and scan logs are encrypted and strictly private.
+                    <strong className="text-[#1E293B]">Your data:</strong> your allergen profile and scan history are
+                    visible only to you and the IngreGuide administrators, in line with the Data Privacy Act (RA 10173).
                   </p>
                 </div>
               </div>

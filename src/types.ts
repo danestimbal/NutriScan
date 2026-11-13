@@ -19,7 +19,8 @@ export interface UserAllergenProfile {
     pushTakeover: boolean;
     audibleTone: boolean;
     hapticPulse: boolean;
-    caregiverDispatch: boolean;
+    /** Legacy field: the feature was never built, so the app no longer reads or shows it. */
+    caregiverDispatch?: boolean;
   };
   dietaryPreferences?: string[];
   healthGoals?: string[];
@@ -27,13 +28,25 @@ export interface UserAllergenProfile {
   lastSynced?: string;
   intakeHistory?: DailyNutritionalIntake[];
   savedProductIds?: string[];
-  researchMetrics?: {
-    trialCount: number;
-    successfulScans: number;
-    completedTasks: number;
-    retrievalTimes: number[];
-  };
+  researchMetrics?: ResearchMetrics;
 }
+
+/**
+ * Automatically recorded scan measurements. Only records with `version: 2` are real:
+ * earlier versions were pre-filled with placeholder numbers and are ignored.
+ */
+export interface ResearchMetrics {
+  version: 2;
+  /** Barcode lookups attempted (camera, photo, manual entry and live tests). */
+  trialCount: number;
+  /** Lookups that returned a product record. */
+  successfulScans: number;
+  /** Measured lookup durations in milliseconds, most recent last. */
+  retrievalTimes: number[];
+}
+
+/** Product fields that could not be filled from a real source and must be shown as "not available". */
+export type ProductDataGap = 'ingredients' | 'nutrition' | 'nutriScore' | 'nova' | 'transparency';
 
 export interface IngredientAnalysisItem {
   name: string;
@@ -126,6 +139,10 @@ export interface FoodProduct {
   }>;
   safeAlternative?: SafeAlternative;
   moderationStatus?: 'approved' | 'needs_review' | 'flagged';
+  /** Where this record came from, e.g. "Open Food Facts" or "Admin entry". */
+  dataSource?: string;
+  /** Fields with no real data. Screens must not present these as facts. */
+  dataGaps?: ProductDataGap[];
   userReportsCount?: number;
   moderationNotes?: string;
 }
@@ -140,7 +157,8 @@ export interface ScanLog {
   verdictLabel: string;
   allergensMatched: string[];
   timestamp: string;
-  confidence: number;
+  /** Legacy field from older logs; the app does not compute a confidence value. */
+  confidence?: number;
 }
 
 export interface AdditivePolicy {

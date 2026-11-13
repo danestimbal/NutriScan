@@ -2,9 +2,15 @@ import React from 'react';
 import { useApp } from '../context/AppContext';
 
 export const PushTakeoverModal: React.FC = () => {
-  const { hazardAlertProduct, setHazardAlertProduct, userProfile, setActiveTab, setSelectedProductId } = useApp();
+  const { hazardAlertProduct, setHazardAlertProduct, userProfile, setActiveTab, setSelectedProductId, evaluateForUser } =
+    useApp();
 
   if (!hazardAlertProduct) return null;
+  const result = evaluateForUser(hazardAlertProduct);
+  const matchedNames = result.matched.map((a) => a.name);
+  const advisory = result.mayContain.length
+    ? `May also contain ${result.mayContain.map((a) => a.name).join(', ')}.`
+    : hazardAlertProduct.facilityWarnings[0];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0f172a]/75 backdrop-blur-md animate-in fade-in duration-200">
@@ -14,14 +20,14 @@ export const PushTakeoverModal: React.FC = () => {
           <div className="flex items-center gap-2">
             <span className="material-symbols-outlined text-2xl animate-bounce">warning</span>
             <div>
-              <span className="font-mono-tech text-[10px] uppercase font-bold tracking-widest text-[#ffdad6] block">
-                CRITICAL BIO-SHIELD LOCKOUT
+              <span className="text-[10px] uppercase font-bold tracking-widest text-[#ffdad6] block">
+                ALLERGEN ALERT
               </span>
-              <h2 className="text-base font-bold tracking-tight">ALERT: RADAR TRIGGERED!</h2>
+              <h2 className="text-base font-bold tracking-tight">This product conflicts with your profile</h2>
             </div>
           </div>
-          <span className="px-2.5 py-0.5 rounded-full bg-white/20 text-white font-mono-tech text-[10px] font-bold">
-            DO NOT INGEST
+          <span className="px-2.5 py-0.5 rounded-full bg-white/20 text-white text-[10px] font-bold">
+            DO NOT EAT
           </span>
         </div>
 
@@ -36,7 +42,7 @@ export const PushTakeoverModal: React.FC = () => {
             />
             <div className="flex-1 min-w-0">
               <span className="text-[11px] font-bold text-[#e11d48] uppercase tracking-wider block">
-                Severe Clinical Risk for {userProfile.displayName}
+                Allergen match for {userProfile.displayName}
               </span>
               <h3 className="text-sm font-bold text-[#0f172a] truncate">{hazardAlertProduct.name}</h3>
               <p className="text-xs text-[#64748b] truncate">{hazardAlertProduct.brand}</p>
@@ -46,16 +52,18 @@ export const PushTakeoverModal: React.FC = () => {
           {/* Trigger Details */}
           <div className="space-y-2">
             <p className="text-xs text-[#1e293b] leading-relaxed">
-              This product contains active concentrations of:{' '}
+              This product contains{' '}
               <strong className="text-[#e11d48] font-bold">
-                {hazardAlertProduct.allergensDetected.join(', ')}
+                {matchedNames.length ? matchedNames.join(', ') : hazardAlertProduct.allergensDetected.join(', ')}
               </strong>
-              .
+              , which you marked as a severe allergen.
             </p>
-            <div className="p-2.5 rounded-xl bg-amber-50 text-[11px] text-[#b45309] flex items-start gap-2">
-              <span className="material-symbols-outlined text-sm mt-0.5 shrink-0">info</span>
-              <span>{hazardAlertProduct.facilityWarnings[0] || 'Cross-contact possible in shared manufacturing facility.'}</span>
-            </div>
+            {advisory && (
+              <div className="p-2.5 rounded-xl bg-amber-50 text-[11px] text-[#b45309] flex items-start gap-2">
+                <span className="material-symbols-outlined text-sm mt-0.5 shrink-0">info</span>
+                <span>{advisory}</span>
+              </div>
+            )}
           </div>
 
           {/* Recommended Safe Swap Teaser */}
@@ -68,7 +76,7 @@ export const PushTakeoverModal: React.FC = () => {
                   className="w-10 h-10 rounded-lg object-cover bg-white shrink-0"
                 />
                 <div className="min-w-0">
-                  <span className="text-[10px] font-bold text-[#5379EE] uppercase block">Safe Swap Ready</span>
+                  <span className="text-[10px] font-bold text-[#5379EE] uppercase block">Suggested alternative</span>
                   <p className="text-xs font-bold text-[#0f172a] truncate">
                     {hazardAlertProduct.safeAlternative.name}
                   </p>
@@ -80,9 +88,9 @@ export const PushTakeoverModal: React.FC = () => {
                   setActiveTab('product-analysis');
                   setHazardAlertProduct(null);
                 }}
-                className="px-3 py-1.5 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white font-mono-tech text-[11px] font-bold transition-all shrink-0"
+                className="px-3 py-1.5 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white text-[11px] font-bold transition-all shrink-0"
               >
-                Switch
+                Details
               </button>
             </div>
           )}
@@ -97,13 +105,13 @@ export const PushTakeoverModal: React.FC = () => {
               }}
               className="w-full py-2.5 rounded-full bg-[#e11d48] hover:bg-[#be0037] text-white font-sans text-xs font-bold transition-all shadow-sm"
             >
-              Inspect Hazards
+              View Product
             </button>
             <button
               onClick={() => setHazardAlertProduct(null)}
               className="w-full py-2.5 rounded-full bg-slate-100 hover:bg-slate-200 text-[#0f172a] font-sans text-xs font-bold transition-colors"
             >
-              Acknowledge &amp; Dismiss
+              Dismiss
             </button>
           </div>
         </div>

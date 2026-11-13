@@ -1,6 +1,13 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { FoodProduct, UserAllergenProfile, ScanLog, AdditivePolicy, DailyNutritionalIntake } from '../types';
-import { initialUserProfile, seedProducts, initialScanLogs, initialAdditivePolicies } from '../data/seedData';
+import {
+  FoodProduct,
+  UserAllergenProfile,
+  ScanLog,
+  AdditivePolicy,
+  DailyNutritionalIntake,
+  ResearchMetrics,
+} from '../types';
+import { initialUserProfile, seedProducts, initialAdditivePolicies, SAMPLE_SOURCE } from '../data/seedData';
 import {
   generate30DayIntakeHistory,
   appendIntakeItemToHistory,
@@ -25,6 +32,7 @@ import { doc, getDoc, setDoc, deleteDoc, onSnapshot, collection } from 'firebase
 import { sensoryEngine } from '../utils/soundEffects';
 import { seedDatabaseIfEmpty } from '../utils/firestoreSeeder';
 import { AdminRole, OWNER_ADMIN_EMAIL } from '../config/admin';
+import { evaluateProduct, normalizeAllergenList, ProductEvaluation } from '../utils/allergens';
 
 /** Moderation fields are managed by admins only; never echo them back in profile writes. */
 const stripModerationFields = <T extends Record<string, any>>(data: T): T => {
@@ -39,8 +47,15 @@ export type NavigationTab =
   | 'product-analysis'
   | 'ingredient-clarity'
   | 'admin'
+  | 'catalog'
   | 'auth'
   | 'onboarding';
+
+const EMPTY_METRICS: ResearchMetrics = { version: 2, trialCount: 0, successfulScans: 0, retrievalTimes: [] };
+
+/** Returns the user's recorded scan metrics, ignoring pre-filled placeholder data from older versions. */
+export const readResearchMetrics = (profile: Pick<UserAllergenProfile, 'researchMetrics'>): ResearchMetrics =>
+  profile.researchMetrics?.version === 2 ? profile.researchMetrics : EMPTY_METRICS;
 
 interface AppContextType {
   activeTab: NavigationTab;
@@ -77,7 +92,18 @@ interface AppContextType {
   enterGuestMode: () => Promise<void>;
   hazardAlertProduct: FoodProduct | null;
   setHazardAlertProduct: (prod: FoodProduct | null) => void;
-  triggerScanCheck: (product: FoodProduct) => void;
+  /**
+   * Logs a scan of `product` against the user's profile and raises alerts.
+   * Pass `lookupMs` (measured time from barcode to product record) for real scans so it counts as a research trial.
+   */
+  triggerScanCheck: (product: FoodProduct, options?: { lookupMs?: number }) => ProductEvaluation;
+  /** Checks a product against the current user's allergens, watchlist and enforced additive policies. */
+  evaluateForUser: (product: FoodProduct) => ProductEvaluation;
+  /** Records a barcode lookup that found nothing (counts as a failed research trial). */
+  recordFailedLookup: (lookupMs: number) => void;
+  /** Records the result of a live database lookup test. */
+  recordLookupTrial: (found: boolean, lookupMs: number) => void;
+  resetResearchMetrics: () => void;
   adminRole: AdminRole;
   isAdmin: boolean;
   accountNotice: string | null;
@@ -119,6 +145,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       displayName: isLegacyName ? fallbackName : profile.displayName!,
       email: cleanEmail,
       photoURL: isLegacyPhoto ? '' : profile.photoURL!,
+      // Keep the user's choices but refresh the allergen list itself (names, new allergens).
+      activeAllergens: normalizeAllergenList(profile.activeAllergens),
+      watchlist: Array.isArray(profile.watchlist) ? profile.watchlist : [],
     };
   };
 
@@ -196,8 +225,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       (snapshot) => {
         if (!snapshot.empty) {
           const loadedProducts = snapshot.docs.map((docSnap) => {
-            const data = docSnap.data() as FoodProduct;
+            let data = docSnap.data() as FoodProduct;
+            if (data.id?.startsWith('ext-') && !data.dataSource) {
+              data = {
+                ...data,
+                isVerified: false,
+                moderationStatus: 'needs_review',
+                dataSource: 'earlier automatic import',
+                dataGaps: ['nutrition', 'nutriScore', 'nova', 'transparency'],
+                verdictSummary: 'Imported automatically by an earlier version. An administrator has not reviewed this record yet.',
+              };
+            }
             const canonicalSeed = seedProductMap.get(data.id);
+            if (canonicalSeed && !data.dataSource) data = { ...data, dataSource: SAMPLE_SOURCE };
             // Ensure updated seed product images immediately reflect even before batch reseed finishes
             if (canonicalSeed && data.image !== canonicalSeed.image && data.image?.includes('images.unsplash.com')) {
               return { ...data, image: canonicalSeed.image };
@@ -420,7 +460,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Save profile to local storage & Firestore if user is signed in
   const updateUserProfile = async (partial: Partial<UserAllergenProfile>) => {
-    const updated = stripModerationFields({ ...userProfile, ...partial, lastSynced: 'Just now' });
+    const updated = stripModerationFields({ ...userProfile, ...partial, lastSynced: new Date().toLocaleString() });
     setUserProfile(updated);
     localStorage.setItem('ingreguide_profile', JSON.stringify(updated));
 
@@ -670,52 +710,49 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setActiveTab('dashboard');
   };
 
-  // Cross-reference a product with active user allergies to trigger sensory sentry
-  const triggerScanCheck = (product: FoodProduct) => {
-    const activeAllergenNames = userProfile.activeAllergens
-      .filter((a) => a.active)
-      .map((a) => a.name.toLowerCase());
+  const evaluateForUser = (product: FoodProduct) => evaluateProduct(product, userProfile, additivePolicies);
 
-    const hasMatch = product.allergensDetected.some((allergen) =>
-      activeAllergenNames.some(
-        (target) =>
-          allergen.toLowerCase().includes(target) ||
-          (target.includes('peanut') && allergen.toLowerCase().includes('peanut')) ||
-          (target.includes('gluten') && allergen.toLowerCase().includes('gluten')) ||
-          (target.includes('dairy') && (allergen.toLowerCase().includes('dairy') || allergen.toLowerCase().includes('milk') || allergen.toLowerCase().includes('lactose'))) ||
-          (target.includes('soy') && allergen.toLowerCase().includes('soy'))
-      )
-    );
+  /** Adds one measured lookup to the research metrics (kept to the latest 200 timings). */
+  const withLookup = (found: boolean, lookupMs: number): ResearchMetrics => {
+    const current = readResearchMetrics(userProfile);
+    return {
+      version: 2,
+      trialCount: current.trialCount + 1,
+      successfulScans: current.successfulScans + (found ? 1 : 0),
+      retrievalTimes: [...current.retrievalTimes.slice(-199), Math.max(1, Math.round(lookupMs))],
+    };
+  };
 
-    const verdict = hasMatch ? 'HAZARD' : product.allergensDetected.length > 0 ? 'WARNING' : 'SAFE';
+  const recordLookupTrial = (found: boolean, lookupMs: number) => {
+    updateUserProfile({ researchMetrics: withLookup(found, lookupMs) });
+  };
+  const recordFailedLookup = (lookupMs: number) => recordLookupTrial(false, lookupMs);
+  const resetResearchMetrics = () => {
+    updateUserProfile({ researchMetrics: { version: 2, trialCount: 0, successfulScans: 0, retrievalTimes: [] } });
+  };
+
+  // Check a scanned product against the user's profile, log it, and raise alerts
+  const triggerScanCheck = (product: FoodProduct, options?: { lookupMs?: number }): ProductEvaluation => {
+    const result = evaluateForUser(product);
 
     addScanLog({
       userId: userProfile.uid,
       barcode: product.barcode,
       productName: product.name,
       brand: product.brand,
-      verdict,
-      verdictLabel: hasMatch ? 'Allergen Conflict Triggered' : verdict === 'WARNING' ? 'Trace Caution' : '100% Allergen Safe',
-      allergensMatched: product.allergensDetected,
-      confidence: 99.8,
+      verdict: result.verdict,
+      verdictLabel: result.label,
+      allergensMatched: [...result.matched, ...result.mayContain].map((a) => a.name),
     });
 
-    // Sync research metrics and (if non-hazard) today's nutrient intake history to Firestore
-    const currentMetrics = userProfile.researchMetrics || {
-      trialCount: 50,
-      successfulScans: 49,
-      completedTasks: 48,
-      retrievalTimes: [230, 245, 210, 260, 225, 280, 215, 240],
-    };
-    const nextLatency = Math.floor(Math.random() * 35 + 195);
-    const updatedMetrics = {
-      trialCount: currentMetrics.trialCount + 1,
-      successfulScans: currentMetrics.successfulScans + 1,
-      completedTasks: currentMetrics.completedTasks + 1,
-      retrievalTimes: [...currentMetrics.retrievalTimes.slice(-19), nextLatency],
-    };
+    const profileUpdate: Partial<UserAllergenProfile> = {};
+    if (typeof options?.lookupMs === 'number') {
+      profileUpdate.researchMetrics = withLookup(true, options.lookupMs);
+    }
 
-    if (!hasMatch) {
+    // Only log intake for products the user can eat and that have real nutrition data
+    const hasNutrition = !(product.dataGaps || []).includes('nutrition');
+    if (result.verdict !== 'HAZARD' && hasNutrition) {
       const updatedHistory = appendIntakeItemToHistory(intakeHistory, productToIntakeItem(product));
       setIntakeHistory(updatedHistory);
       try {
@@ -723,29 +760,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } catch {
         // ignore
       }
-      updateUserProfile({
-        researchMetrics: updatedMetrics,
-        intakeHistory: updatedHistory,
-      });
-    } else {
-      updateUserProfile({
-        researchMetrics: updatedMetrics,
-      });
+      profileUpdate.intakeHistory = updatedHistory;
     }
+    if (Object.keys(profileUpdate).length > 0) updateUserProfile(profileUpdate);
 
-    if (hasMatch) {
-      if (userProfile.sentrySettings.audibleTone) {
-        sensoryEngine.playHazardTone();
-      }
-      if (userProfile.sentrySettings.hapticPulse) {
-        sensoryEngine.triggerHaptic();
-      }
-      if (userProfile.sentrySettings.pushTakeover) {
-        setHazardAlertProduct(product);
-      }
-    } else {
+    if (result.verdict === 'HAZARD') {
+      if (userProfile.sentrySettings.audibleTone) sensoryEngine.playHazardTone();
+      if (userProfile.sentrySettings.hapticPulse) sensoryEngine.triggerHaptic();
+      if (userProfile.sentrySettings.pushTakeover) setHazardAlertProduct(product);
+    } else if (result.verdict === 'SAFE') {
       sensoryEngine.playSafeChime();
     }
+
+    return result;
   };
 
   return (
@@ -786,6 +813,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         hazardAlertProduct,
         setHazardAlertProduct,
         triggerScanCheck,
+        evaluateForUser,
+        recordFailedLookup,
+        recordLookupTrial,
+        resetResearchMetrics,
         adminRole,
         isAdmin: adminRole === 'admin' || adminRole === 'owner',
         accountNotice,

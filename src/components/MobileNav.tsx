@@ -41,14 +41,14 @@ export const MobileNav: React.FC = () => {
           >
             <span className="material-symbols-outlined text-[28px]">qr_code_scanner</span>
           </button>
-          <span className="font-mono-tech text-[10px] font-bold text-[#0f172a] mt-0.5">Scan</span>
+          <span className="text-[10px] font-bold text-[#0f172a] mt-0.5">Scan</span>
         </div>
 
-        {/* Item 4: History / Product Analysis */}
+        {/* Item 4: Product Catalog (product analysis opens from there) */}
         <button
-          onClick={() => setActiveTab('product-analysis')}
+          onClick={() => setActiveTab('catalog')}
           className={`flex flex-col items-center justify-center gap-0.5 flex-1 transition-all ${
-            activeTab === 'product-analysis' || activeTab === 'ingredient-clarity'
+            activeTab === 'catalog' || activeTab === 'product-analysis' || activeTab === 'ingredient-clarity'
               ? 'text-[#5379EE]'
               : 'text-[#64748b] hover:text-[#0f172a]'
           }`}

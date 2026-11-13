@@ -66,8 +66,8 @@ export interface LandingSettings {
     sideImage: string;
     items: LandingItem[];
   };
+  /** Heading and button on the Product Catalog page. */
   catalog: {
-    show: boolean;
     titleLead: string;
     titleAccent: string;
     subtitle: string;
@@ -85,12 +85,6 @@ export interface LandingSettings {
     titleAccent: string;
     subtitle: string;
     items: LandingTestimonial[];
-  };
-  gallery: {
-    show: boolean;
-    titleLead: string;
-    titleAccent: string;
-    subtitle: string;
   };
   about: {
     show: boolean;
@@ -141,7 +135,7 @@ export const DEFAULT_LANDING_SETTINGS: LandingSettings = {
     titleAccent: 'free profile',
     subtitle: 'Save your allergens once and every scan is checked against them automatically.',
     buttonLabel: 'Create Account',
-    note: 'Your allergen profile and scan history stay private to your account (RA 10173).',
+    note: 'Your allergen profile and scan history are visible only to you and the IngreGuide administrators.',
   },
   steps: {
     show: true,
@@ -181,7 +175,7 @@ export const DEFAULT_LANDING_SETTINGS: LandingSettings = {
       {
         icon: 'radar',
         title: 'Allergen Radar',
-        desc: 'Products are checked against your active allergens, including the alternate names manufacturers use.',
+        desc: 'Products are checked against the allergens you switch on, including common alternate ingredient names.',
       },
       {
         icon: 'science',
@@ -211,10 +205,9 @@ export const DEFAULT_LANDING_SETTINGS: LandingSettings = {
     ],
   },
   catalog: {
-    show: true,
     titleLead: 'Browse the',
     titleAccent: 'product catalog',
-    subtitle: 'Tap any product to open its full ingredient analysis.',
+    subtitle: 'Search every product in IngreGuide and tap one to open its full ingredient analysis.',
     buttonLabel: 'Open Scanner',
   },
   decoder: {
@@ -229,12 +222,6 @@ export const DEFAULT_LANDING_SETTINGS: LandingSettings = {
     titleAccent: 'users say',
     subtitle: 'Feedback from people who have tried IngreGuide.',
     items: [],
-  },
-  gallery: {
-    show: true,
-    titleLead: 'Allergens',
-    titleAccent: 'caught',
-    subtitle: 'Products in the catalog with declared allergens. Tap one to see exactly what was flagged.',
   },
   about: {
     show: true,

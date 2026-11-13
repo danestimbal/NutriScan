@@ -1,7 +1,8 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { useLandingSettings } from '../hooks/useLandingSettings';
 import { FoodProduct } from '../types';
+import { Heading, PILL_BTN, PRIMARY_BTN, gradeClass } from './landingUi';
 
 type AuthMode = 'login' | 'create';
 
@@ -10,10 +11,6 @@ interface LandingPageProps {
 }
 
 const WHITE = '#FFFFFF';
-const PRIMARY_BTN =
-  'bg-gradient-to-r from-[#2563EB] via-[#5379EE] to-[#4F46E5] hover:from-[#1D4ED8] hover:to-[#4338CA] text-white shadow-[0_10px_24px_rgba(37,99,235,0.3)]';
-const PILL_BTN =
-  'inline-flex items-center justify-center rounded-full font-bold uppercase tracking-wide text-xs whitespace-nowrap transition-all active:scale-[0.98] cursor-pointer';
 
 const DECODED_CODES = [
   {
@@ -46,41 +43,7 @@ const DECODED_CODES = [
   },
 ];
 
-const GRADE_TABS = [
-  { id: 'all', label: 'All', grades: ['A', 'B', 'C', 'D', 'E'] },
-  { id: 'ab', label: 'Grade A–B', grades: ['A', 'B'] },
-  { id: 'c', label: 'Grade C', grades: ['C'] },
-  { id: 'de', label: 'Grade D–E', grades: ['D', 'E'] },
-];
-
-const gradeClass = (grade: string) =>
-  grade === 'A' || grade === 'B'
-    ? 'bg-emerald-500 text-white'
-    : grade === 'C'
-    ? 'bg-amber-500 text-white'
-    : 'bg-rose-500 text-white';
-
 const scrollToId = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
-
-/** Condensed uppercase heading with the underlined accent phrase from the reference design. */
-const Heading: React.FC<{ lead: string; accent: string; light?: boolean; as?: 'h1' | 'h2'; className?: string }> = ({
-  lead,
-  accent,
-  light,
-  as: Tag = 'h2',
-  className = 'text-4xl sm:text-5xl',
-}) => (
-  <Tag className={`font-display uppercase leading-[1.05] ${light ? 'text-white' : 'text-[#1E293B]'} ${className}`}>
-    {lead}{' '}
-    <span
-      className={`underline decoration-[3px] underline-offset-[6px] ${
-        light ? 'text-[#BFDBFE] decoration-[#BFDBFE]' : 'text-[#2563EB] decoration-[#2563EB]'
-      }`}
-    >
-      {accent}
-    </span>
-  </Tag>
-);
 
 /** Small curved notch that lets the next section's colour poke up into this one. */
 const Notch: React.FC<{ color: string }> = ({ color }) => (
@@ -105,12 +68,10 @@ const Decor: React.FC<{ icon: string; className: string }> = ({ icon, className 
 export const LandingPage: React.FC<LandingPageProps> = ({ onOpenAuth }) => {
   const { products, isLoggedIn, enterGuestMode, setActiveTab, setSelectedProductId } = useApp();
   const settings = useLandingSettings();
-  const { theme, hero, why, join, steps, features, catalog, decoder, testimonials, gallery, about } = settings;
+  const { theme, hero, why, join, steps, features, decoder, testimonials, about } = settings;
 
-  const [gradeTab, setGradeTab] = useState('all');
   const [joinName, setJoinName] = useState('');
   const [joinEmail, setJoinEmail] = useState('');
-  const railRef = useRef<HTMLDivElement>(null);
 
   const tint = theme.pageTint || '#EEF2FF';
 
@@ -121,22 +82,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenAuth }) => {
   };
 
   const sampleProduct = useMemo(
-    () => products.find((p) => p.allergensDetected?.length > 0 && p.image) || products[0],
+    // Showcase a reviewed product with a real grade, never an unreviewed import
+    () =>
+      products.find((p) => p.isVerified && !p.dataGaps?.length && p.allergensDetected?.length > 0 && p.image) ||
+      products.find((p) => p.isVerified && !p.dataGaps?.length) ||
+      products[0],
     [products]
   );
-
-  const catalogProducts = useMemo(() => {
-    const grades = GRADE_TABS.find((t) => t.id === gradeTab)?.grades || [];
-    return products.filter((p) => grades.includes(p.nutriScore)).slice(0, 12);
-  }, [products, gradeTab]);
-
-  const galleryProducts = useMemo(() => {
-    const flagged = products.filter((p) => p.allergensDetected?.length > 0);
-    return (flagged.length >= 3 ? flagged : products).slice(0, 6);
-  }, [products]);
-
-  const scrollRail = (direction: 1 | -1) =>
-    railRef.current?.scrollBy({ left: direction * 320, behavior: 'smooth' });
 
   const startPrimary = () => (isLoggedIn ? setActiveTab('dashboard') : onOpenAuth('create'));
   // Signed-in users keep their own profile; only visitors get a guest session.
@@ -244,6 +196,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenAuth }) => {
               <div className="flex items-center gap-2">
                 <button
                   type="button"
+                  onClick={() => {
+                    setActiveTab('catalog');
+                    window.scrollTo({ top: 0 });
+                  }}
+                  aria-label="Product Catalog"
+                  className={`${PILL_BTN} h-9 px-3 md:px-4 text-[#334155] hover:text-[#2563EB] hover:bg-[#EEF2FF] lg:text-white lg:hover:text-white lg:hover:bg-white/15 gap-1.5`}
+                >
+                  <span className="material-symbols-outlined text-lg md:hidden!">storefront</span>
+                  <span className="max-md:hidden">Product Catalog</span>
+                </button>
+                <button
+                  type="button"
                   onClick={() => enterApp('dashboard')}
                   className={`${PILL_BTN} max-sm:hidden h-9 px-4 bg-[#1E293B] hover:bg-[#0F172A] text-white`}
                 >
@@ -273,7 +237,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenAuth }) => {
 
           {/* Section jump dots */}
           <div className="hidden lg:flex flex-col items-center gap-2.5 absolute right-5 top-[300px] z-20">
-            {['why', 'how-it-works', 'catalog', 'about'].map((id, idx) => (
+            {['why', 'join', 'how-it-works', 'about'].map((id, idx) => (
               <button
                 key={id}
                 type="button"
@@ -293,7 +257,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenAuth }) => {
                 as="h1"
                 lead={hero.titleLead}
                 accent={hero.titleAccent}
-                className="text-5xl sm:text-6xl lg:text-[58px]"
+                className="text-4xl sm:text-5xl lg:text-[52px]"
               />
               <p className="mt-6 text-base text-[#334155] leading-relaxed max-w-md">{hero.subtitle}</p>
 
@@ -332,7 +296,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenAuth }) => {
                     <defs>
                       <path id="lp-seal-path" d="M 50, 50 m -37, 0 a 37,37 0 1,1 74,0 a 37,37 0 1,1 -74,0" />
                     </defs>
-                    <text className="text-[9.5px] font-mono-tech font-bold uppercase fill-[#2563EB] tracking-[0.19em]">
+                    <text className="text-[9.5px] font-bold uppercase fill-[#2563EB] tracking-[0.19em]">
                       <textPath href="#lp-seal-path">{hero.sealText}</textPath>
                     </text>
                   </svg>
@@ -353,7 +317,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenAuth }) => {
               </div>
 
               {(hero.badgeLine1 || hero.badgeLine2) && (
-                <div className="absolute top-0 right-16 z-20 rotate-12 w-28 h-24 rounded-[50%] border-2 border-white hidden lg:flex flex-col items-center justify-center text-white font-display text-2xl leading-none uppercase text-center">
+                <div className="absolute top-0 right-16 z-20 rotate-12 w-28 h-24 rounded-[50%] border-2 border-white hidden lg:flex flex-col items-center justify-center text-white text-sm font-extrabold leading-tight uppercase tracking-wide text-center">
                   <span>{hero.badgeLine1}</span>
                   <span>{hero.badgeLine2}</span>
                 </div>
@@ -373,7 +337,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenAuth }) => {
                     className="relative z-10 w-64 sm:w-72 text-left bg-white rounded-3xl p-4 shadow-[0_30px_60px_rgba(15,23,42,0.35)] -rotate-3 hover:rotate-0 transition-transform cursor-pointer lg:-translate-x-10"
                   >
                     <span className="flex items-center justify-between">
-                      <span className="flex items-center gap-1.5 font-mono-tech text-[11px] font-bold uppercase text-[#2563EB]">
+                      <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase text-[#2563EB]">
                         <span className="material-symbols-outlined text-base">barcode_scanner</span>
                         Scan result
                       </span>
@@ -473,7 +437,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenAuth }) => {
                     idx % 2 === 0 ? 'bg-[#EEF2FF]' : 'bg-[#F1F5F9]'
                   }`}
                 >
-                  <span className="absolute -top-5 -left-5 w-20 h-20 rounded-full bg-white/80 flex items-end justify-end pr-5 pb-3 font-display text-4xl text-[#93A8E8]">
+                  <span className="absolute -top-5 -left-5 w-20 h-20 rounded-full bg-white/80 flex items-end justify-end pr-5 pb-3 text-3xl font-extrabold text-[#93A8E8]">
                     {idx + 1}
                   </span>
                   <span className="material-symbols-outlined text-[52px]! text-[#3B5BDB]">{item.icon}</span>
@@ -514,92 +478,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenAuth }) => {
               ))}
             </div>
           </div>
-          <Notch color="#F8FAFF" />
-        </section>
-      )}
-
-      {/* ============ CATALOG CAROUSEL ============ */}
-      {catalog.show && (
-        <section id="catalog" className="relative bg-[#F8FAFF] py-20 scroll-mt-6">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row md:items-end justify-between gap-5">
-            <div>
-              <Heading lead={catalog.titleLead} accent={catalog.titleAccent} />
-              <p className="mt-4 text-sm font-medium text-[#334155] max-w-md">{catalog.subtitle}</p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {GRADE_TABS.map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setGradeTab(tab.id)}
-                  className={`${PILL_BTN} h-9 px-5 ${
-                    gradeTab === tab.id
-                      ? 'bg-[#2563EB] text-white shadow-[0_6px_16px_rgba(37,99,235,0.3)]'
-                      : 'bg-white text-[#1E293B] shadow-xs hover:bg-[#EEF2FF]'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div
-            ref={railRef}
-            className="mt-9 flex gap-5 overflow-x-auto snap-x snap-mandatory px-4 sm:px-6 lg:px-[max(2rem,calc((100vw-64rem)/2+2rem))] pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          >
-            {catalogProducts.length === 0 && (
-              <p className="text-sm text-[#64748B] py-10">No products with this grade in the catalog yet.</p>
-            )}
-            {catalogProducts.map((product) => (
-              <button
-                key={product.id}
-                type="button"
-                onClick={() => openProduct(product)}
-                className="group snap-start shrink-0 w-64 sm:w-72 text-left cursor-pointer"
-              >
-                <span className="relative block aspect-[10/9] rounded-xl overflow-hidden bg-slate-100 shadow-xs">
-                  <img
-                    src={product.image}
-                    alt={product.name}
-                    loading="lazy"
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                  <span className={`absolute top-3 left-3 px-2.5 py-0.5 rounded-full text-[11px] font-black ${gradeClass(product.nutriScore)}`}>
-                    Grade {product.nutriScore}
-                  </span>
-                </span>
-                <span className="mt-3 block text-sm font-bold leading-snug line-clamp-2">{product.name}</span>
-                <span className="block text-xs text-[#64748B] truncate">{product.brand}</span>
-              </button>
-            ))}
-          </div>
-
-          <div className="mt-6 flex items-center justify-center gap-3">
-            <button
-              type="button"
-              onClick={() => scrollRail(-1)}
-              aria-label="Previous products"
-              className="w-9 h-9 rounded-full bg-slate-300 hover:bg-slate-400 text-white flex items-center justify-center cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-lg">chevron_left</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => enterApp('scanner')}
-              className={`${PILL_BTN} ${PRIMARY_BTN} h-11 px-9`}
-            >
-              {catalog.buttonLabel}
-            </button>
-            <button
-              type="button"
-              onClick={() => scrollRail(1)}
-              aria-label="Next products"
-              className="w-9 h-9 rounded-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white flex items-center justify-center cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-lg">chevron_right</span>
-            </button>
-          </div>
           <Notch color="#E6ECFB" />
         </section>
       )}
@@ -621,12 +499,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenAuth }) => {
                 <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
                   {DECODED_CODES.map((item) => (
                     <div key={item.code} className="bg-white rounded-xl p-5 shadow-[0_10px_30px_rgba(83,121,238,0.1)]">
-                      <span className={`inline-block font-mono-tech text-[10px] font-bold px-2 py-0.5 rounded-full border ${item.color}`}>
+                      <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full border ${item.color}`}>
                         {item.badge}
                       </span>
                       <p className="mt-3 text-[13px] text-[#475569] leading-loose">“{item.plain}”</p>
                       <div className="mt-4 flex items-center gap-3">
-                        <span className="w-11 h-11 rounded-full bg-[#EEF2FF] text-[#2563EB] font-mono-tech text-[11px] font-black flex items-center justify-center shrink-0">
+                        <span className="w-11 h-11 rounded-full bg-[#EEF2FF] text-[#2563EB] text-[11px] font-black flex items-center justify-center shrink-0">
                           {item.code}
                         </span>
                         <span className="min-w-0">
@@ -671,47 +549,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenAuth }) => {
                 </div>
               </div>
             )}
-          </div>
-        </section>
-      )}
-
-      {/* ============ GALLERY GRID ============ */}
-      {gallery.show && galleryProducts.length > 0 && (
-        <section className="relative bg-white px-4 sm:px-6 lg:px-8 py-20 overflow-hidden">
-          {hero.showDecor && (
-            <>
-              <Decor icon="set_meal" className="left-2 top-56 text-8xl! text-slate-200 -rotate-12" />
-              <Decor icon="grocery" className="right-2 top-56 text-8xl! text-slate-200 rotate-12" />
-            </>
-          )}
-          <div className="relative max-w-5xl mx-auto">
-            <Heading lead={gallery.titleLead} accent={gallery.titleAccent} />
-            <p className="mt-4 text-sm font-medium text-[#334155] max-w-md">{gallery.subtitle}</p>
-            <div className="mt-9 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {galleryProducts.map((product) => (
-                <button
-                  key={product.id}
-                  type="button"
-                  onClick={() => openProduct(product)}
-                  className="group relative aspect-square rounded-xl overflow-hidden bg-slate-100 text-left cursor-pointer"
-                >
-                  <img
-                    src={product.image}
-                    alt={product.name}
-                    loading="lazy"
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                  <span className="absolute inset-x-0 bottom-0 pt-20 pb-5 px-5 bg-gradient-to-t from-[#0F172A]/90 via-[#0F172A]/55 to-transparent text-white">
-                    <span className="block text-sm font-bold leading-snug line-clamp-2">{product.name}</span>
-                    {product.allergensDetected.length > 0 && (
-                      <span className="mt-1 block text-[11px] text-[#BFDBFE] truncate">
-                        Flags: {product.allergensDetected.slice(0, 3).join(', ')}
-                      </span>
-                    )}
-                  </span>
-                </button>
-              ))}
-            </div>
           </div>
         </section>
       )}

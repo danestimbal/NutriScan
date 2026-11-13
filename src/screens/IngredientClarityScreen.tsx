@@ -1,27 +1,32 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { getSmartProductFallbackImage } from '../utils/barcode';
+import { getSmartProductFallbackImage, hasGap } from '../utils/barcode';
 
 export const IngredientClarityScreen: React.FC = () => {
-  const { selectedProduct, setActiveTab, userProfile, toggleSavedProduct } = useApp();
+  const { selectedProduct, setActiveTab, userProfile, toggleSavedProduct, isLoggedIn } = useApp();
   const [clarityMode, setClarityMode] = useState<'decoded' | 'original'>('decoded');
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   const prod = selectedProduct;
   const savedToCollection = (userProfile.savedProductIds || []).includes(prod.id);
-  const wholeFoodItems =
-    prod.ingredientsAnalysis.filter((item) => item.status === 'Safe').length > 0
-      ? prod.ingredientsAnalysis.filter((item) => item.status === 'Safe')
-      : prod.ingredientsAnalysis;
-  const isDairyFree = !prod.allergensDetected.some(
-    (a) => a.toLowerCase().includes('milk') || a.toLowerCase().includes('dairy') || a.toLowerCase().includes('lactose')
-  );
-  const isGlutenFree = !prod.allergensDetected.some(
-    (a) => a.toLowerCase().includes('wheat') || a.toLowerCase().includes('gluten') || a.toLowerCase().includes('barley')
-  );
+  const wholeFoodItems = prod.ingredientsAnalysis.filter((item) => item.status === 'Safe');
+  const novaMissing = hasGap(prod, 'nova');
+  const scoreMissing = hasGap(prod, 'transparency');
+  const nutritionMissing = hasGap(prod, 'nutrition');
+  const ingredientsMissing = hasGap(prod, 'ingredients');
+  /** Additives are only decoded by an administrator; imported records have not been through that step. */
+  const additivesReviewed = prod.isVerified && !ingredientsMissing;
+  const glycemicKnown = prod.sugarsBreakdown.glycemicLabel !== 'Not available';
 
-  // Dynamic NOVA group metadata
+  // NOVA group metadata
   const novaMeta = (() => {
+    if (novaMissing) {
+      return {
+        title: 'Not rated',
+        tierLabel: 'No rating',
+        description: 'A processing rating (NOVA group) is not available for this product.',
+      };
+    }
     switch (prod.novaGroup) {
       case 1:
         return {
@@ -65,14 +70,16 @@ export const IngredientClarityScreen: React.FC = () => {
         ? 'Good'
         : prod.transparencyScore >= 50
           ? 'Moderate'
-          : 'Low (Ultra-Processed)';
+          : 'Low';
 
   // Dynamic Glycemic & Sugar metrics
   const totalSugars = prod.sugarsBreakdown.totalGrams;
   const sweetenerItems = prod.sugarsBreakdown.items.filter((i) => totalSugars > 0 || !i.name.toLowerCase().includes('zero'));
   const hasMultipleSugars = totalSugars > 0 && sweetenerItems.length > 1;
   const glycemicBarPercent =
-    totalSugars === 0
+    !glycemicKnown
+      ? 0
+      : totalSugars === 0
       ? 5
       : prod.sugarsBreakdown.glycemicLabel.toLowerCase().includes('low')
         ? 25
@@ -81,8 +88,9 @@ export const IngredientClarityScreen: React.FC = () => {
           : 85;
 
   const glycemicExplanation = (() => {
+    if (!glycemicKnown) return 'A glycemic estimate is not available for this product.';
     if (totalSugars === 0) {
-      return `0g total sugars and ${prod.nutrients.carbs} carbohydrates produce virtually zero postprandial blood glucose or insulin spike.`;
+      return `0g total sugars and ${prod.nutrients.carbs} carbohydrates per ${prod.nutrients.servingSize} serving.`;
     }
     const fiberVal = parseFloat(prod.nutrients.fiber) || 0;
     if (fiberVal >= 3) {
@@ -93,7 +101,7 @@ export const IngredientClarityScreen: React.FC = () => {
 
   const handleSave = () => {
     const nowSaved = toggleSavedProduct(prod.id);
-    setToastMsg(nowSaved ? 'Saved to Safe Foods Collection (Synced to Cloud)!' : 'Removed from Safe Foods');
+    setToastMsg(nowSaved ? `Saved to your collection${isLoggedIn ? '' : ' on this device'}` : 'Removed from your collection');
     setTimeout(() => setToastMsg(null), 2500);
   };
 
@@ -109,8 +117,8 @@ export const IngredientClarityScreen: React.FC = () => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         {/* Breadcrumb Row */}
-        <div className="flex items-center gap-2 font-mono-tech text-xs text-[#64748b]">
-          <button onClick={() => setActiveTab('dashboard')} className="hover:text-[#5379EE]">
+        <div className="flex items-center gap-2 text-xs text-[#64748b]">
+          <button onClick={() => setActiveTab('catalog')} className="hover:text-[#5379EE]">
             Products
           </button>
           <span>&gt;</span>
@@ -149,7 +157,7 @@ export const IngredientClarityScreen: React.FC = () => {
           <div className="flex items-center bg-[#f0f3ff] p-1 rounded-full self-start lg:self-auto shadow-inner">
             <button
               onClick={() => setClarityMode('original')}
-              className={`px-4 py-1.5 rounded-full font-mono-tech text-xs transition-all cursor-pointer ${clarityMode === 'original'
+              className={`px-4 py-1.5 rounded-full text-xs transition-all cursor-pointer ${clarityMode === 'original'
                     ? 'bg-white text-[#0f172a] shadow-xs font-bold'
                     : 'text-[#64748b] hover:text-[#0f172a]'
                   }`}
@@ -158,7 +166,7 @@ export const IngredientClarityScreen: React.FC = () => {
             </button>
             <button
               onClick={() => setClarityMode('decoded')}
-              className = {`px-4 py-1.5 rounded-full font-mono-tech text-xs transition-all flex items-center gap-1.5 cursor-pointer ${clarityMode === 'decoded'
+              className = {`px-4 py-1.5 rounded-full text-xs transition-all flex items-center gap-1.5 cursor-pointer ${clarityMode === 'decoded'
                   ? 'bg-[#5379EE] text-white shadow-xs font-bold'
                   : 'text-[#64748b] hover:text-[#0f172a]'
                 }`}
@@ -173,12 +181,12 @@ export const IngredientClarityScreen: React.FC = () => {
       {clarityMode === 'original' && (
         <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-3">
           <div className="flex items-center justify-between">
-            <span className="font-mono-tech text-xs uppercase font-bold text-[#0f172a]">
+            <span className="text-xs uppercase font-bold text-[#0f172a]">
               Original Package Ingredient Declaration ({prod.brand})
             </span>
-            <span className="font-mono-tech text-[11px] text-[#64748b]">Serving Size: {prod.nutrients.servingSize}</span>
+            <span className="text-[11px] text-[#64748b]">Serving Size: {prod.nutrients.servingSize}</span>
           </div>
-          <p className="font-mono-tech text-xs text-[#1e293b] leading-relaxed bg-[#f8fafc] p-4 rounded-2xl border border-slate-100 uppercase">
+          <p className="text-xs text-[#1e293b] leading-relaxed bg-[#f8fafc] p-4 rounded-2xl border border-slate-100 uppercase">
             INGREDIENTS:{' '}
             {prod.ingredientsVerbatim ||
               `${prod.ingredientsAnalysis.map((i) => i.name).join(', ')}${prod.additivesDecoded.length > 0
@@ -187,7 +195,7 @@ export const IngredientClarityScreen: React.FC = () => {
               }.`}
           </p>
           {prod.allergensDetected.length > 0 && (
-            <p className="font-mono-tech text-xs font-bold text-[#e11d48]">
+            <p className="text-xs font-bold text-[#e11d48]">
               CONTAINS: {prod.allergensDetected.join(', ').toUpperCase()}.
             </p>
           )}
@@ -200,7 +208,7 @@ export const IngredientClarityScreen: React.FC = () => {
         <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-xs flex flex-col justify-between">
           <div className="flex items-start justify-between">
             <div>
-              <span className="font-mono-tech text-[10px] text-[#64748b] uppercase font-bold">Processing Scale</span>
+              <span className="text-[10px] text-[#64748b] uppercase font-bold">Processing Scale</span>
               <h3 className="text-base font-bold text-[#0f172a] mt-1">{novaMeta.title}</h3>
             </div>
             <div className="w-10 h-10 rounded-full bg-[#EEF2FF] flex items-center justify-center text-[#5379EE]">
@@ -210,16 +218,16 @@ export const IngredientClarityScreen: React.FC = () => {
           <p className="text-xs text-[#64748b] mt-2 leading-relaxed">{novaMeta.description}</p>
           {/* Progress */}
           <div className="mt-4">
-            <div className="flex justify-between font-mono-tech text-[10px] text-[#64748b] mb-1">
+            <div className="flex justify-between text-[10px] text-[#64748b] mb-1">
               <span>NOVA 1 (Raw)</span>
               <span className="font-bold text-[#5379EE]">{novaMeta.tierLabel}</span>
               <span>NOVA 4 (Ultra)</span>
             </div>
               <div className="w-full h-2 rounded-full bg-slate-100 flex overflow-hidden gap-0.5">
-                <div className={`h-full w-1/4 ${prod.novaGroup >= 1 ? 'bg-[#10b981]' : 'bg-slate-200'}`}></div>
-                <div className={`h-full w-1/4 ${prod.novaGroup >= 2 ? 'bg-[#5379EE]' : 'bg-slate-200'}`}></div>
-                <div className={`h-full w-1/4 ${prod.novaGroup >= 3 ? 'bg-[#d97706]' : 'bg-slate-200'}`}></div>
-                <div className={`h-full w-1/4 ${prod.novaGroup >= 4 ? 'bg-[#e11d48]' : 'bg-slate-200'}`}></div>
+                <div className={`h-full w-1/4 ${!novaMissing && prod.novaGroup >= 1 ? 'bg-[#10b981]' : 'bg-slate-200'}`}></div>
+                <div className={`h-full w-1/4 ${!novaMissing && prod.novaGroup >= 2 ? 'bg-[#5379EE]' : 'bg-slate-200'}`}></div>
+                <div className={`h-full w-1/4 ${!novaMissing && prod.novaGroup >= 3 ? 'bg-[#d97706]' : 'bg-slate-200'}`}></div>
+                <div className={`h-full w-1/4 ${!novaMissing && prod.novaGroup >= 4 ? 'bg-[#e11d48]' : 'bg-slate-200'}`}></div>
               </div>
             </div>
           </div>
@@ -228,10 +236,12 @@ export const IngredientClarityScreen: React.FC = () => {
           <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-xs flex flex-col justify-between">
             <div className="flex items-start justify-between">
               <div>
-                <span className="font-mono-tech text-[10px] text-[#64748b] uppercase font-bold">Safety &amp; Cleanliness</span>
+                <span className="text-[10px] text-[#64748b] uppercase font-bold">Safety &amp; Cleanliness</span>
                 <div className="flex items-baseline gap-1 mt-1">
-                  <span className="text-3xl font-extrabold text-[#0f172a]">{prod.transparencyScore}</span>
-                  <span className="font-mono-tech text-xs text-[#64748b]">/ 100</span>
+                  <span className="text-3xl font-extrabold text-[#0f172a]">
+                    {scoreMissing ? '—' : prod.transparencyScore}
+                  </span>
+                  <span className="text-xs text-[#64748b]">{scoreMissing ? 'Not scored' : '/ 100'}</span>
                 </div>
               </div>
               <div className="w-10 h-10 rounded-full bg-[#EEF2FF] flex items-center justify-center text-[#5379EE]">
@@ -239,15 +249,16 @@ export const IngredientClarityScreen: React.FC = () => {
               </div>
             </div>
               <div className="space-y-1 mt-2 text-xs font-medium">
-                {prod.additivesDecoded.length === 0 ? (
+                {!additivesReviewed ? (
+                  <div className="flex items-center gap-1.5 text-[#64748b]">
+                    <span className="material-symbols-outlined text-sm">pending</span>
+                    <span>Additives have not been reviewed for this product yet</span>
+                  </div>
+                ) : prod.additivesDecoded.length === 0 ? (
                   <>
                     <div className="flex items-center gap-1.5 text-[#059669]">
                       <span className="material-symbols-outlined text-sm">check_circle</span>
-                      <span>0 synthetic additives or artificial dyes</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-[#5379EE]">
-                      <span className="material-symbols-outlined text-sm">check_circle</span>
-                      <span>0 chemical preservatives detected</span>
+                      <span>No additives recorded for this product</span>
                     </div>
                   </>
                 ) : (
@@ -268,14 +279,14 @@ export const IngredientClarityScreen: React.FC = () => {
                       <span>
                         {highRiskAdditives.length > 0
                           ? `${highRiskAdditives.length} elevated-caution agent(s) flagged`
-                          : 'Low toxicological risk profile'}
+                          : 'None marked as elevated caution'}
                       </span>
                     </div>
                   </>
                 )}
               </div>
-              <span className="font-mono-tech text-[10px] text-[#64748b] mt-3">
-                Botanical purity index: {purityIndexLabel}
+              <span className="text-[10px] text-[#64748b] mt-3">
+                {scoreMissing ? 'Not scored by an administrator yet' : `Transparency rating: ${purityIndexLabel}`}
               </span>
             </div>
 
@@ -283,9 +294,13 @@ export const IngredientClarityScreen: React.FC = () => {
             <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-xs flex flex-col justify-between">
               <div className="flex items-start justify-between">
                 <div>
-                  <span className="font-mono-tech text-[10px] text-[#64748b] uppercase font-bold">Allergen Radar</span>
+                  <span className="text-[10px] text-[#64748b] uppercase font-bold">Allergen Radar</span>
                   <h3 className="text-base font-bold text-[#0f172a] mt-1">
-                    {prod.allergensDetected.length > 0 ? 'Allergen Trigger Detected' : 'Clear Purity'}
+                    {prod.allergensDetected.length > 0
+                      ? 'Allergens Declared'
+                      : ingredientsMissing
+                        ? 'Not Checked'
+                        : 'No Allergens Declared'}
                   </h3>
                 </div>
                   <div
@@ -300,27 +315,23 @@ export const IngredientClarityScreen: React.FC = () => {
                   </div>
                 </div>
                 <p className="text-xs text-[#64748b] mt-2 leading-relaxed">
-                  Contains: <strong className="text-[#0f172a]">{prod.allergensDetected.join(', ') || 'None'}</strong>.
+                  {ingredientsMissing && prod.allergensDetected.length === 0 ? (
+                    'No ingredient list is available, so allergens could not be checked. Read the package label.'
+                  ) : (
+                    <>
+                      Contains: <strong className="text-[#0f172a]">{prod.allergensDetected.join(', ') || 'none declared'}</strong>.
+                    </>
+                  )}
                 </p>
                 <div className="flex items-center gap-1.5 flex-wrap mt-3">
                   {prod.allergensDetected.map((a, i) => (
                     <span
                       key={i}
-                      className="bg-[#fff1f2] text-[#e11d48] px-2.5 py-0.5 rounded-full font-mono-tech text-[10px] font-bold flex items-center gap-1"
+                      className="bg-[#fff1f2] text-[#e11d48] px-2.5 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1"
                     >
                       <span className="material-symbols-outlined text-xs">priority_high</span> {a}
                     </span>
                   ))}
-                  {isDairyFree && (
-                    <span className="bg-[#EEF2FF] text-[#5379EE] px-2.5 py-0.5 rounded-full font-mono-tech text-[10px] font-bold flex items-center gap-1">
-                      <span className="material-symbols-outlined text-xs">check</span> Dairy Free
-                    </span>
-                  )}
-                  {isGlutenFree && (
-                    <span className="bg-[#ecfdf5] text-[#059669] px-2.5 py-0.5 rounded-full font-mono-tech text-[10px] font-bold flex items-center gap-1">
-                      <span className="material-symbols-outlined text-xs">check</span> Gluten Free
-                    </span>
-                  )}
                 </div>
               </div>
             </div>
@@ -338,12 +349,12 @@ export const IngredientClarityScreen: React.FC = () => {
                       </div>
                       <div>
                         <h2 className="text-base font-bold text-[#0f172a]">Additives Decoded</h2>
-                        <span className="font-mono-tech text-[10px] text-[#64748b] uppercase tracking-wider">
-                          E-Numbers Translated to Kitchen Realities
+                        <span className="text-[10px] text-[#64748b] uppercase tracking-wider">
+                          E-Numbers in Plain English
                         </span>
                       </div>
                     </div>
-                    <span className="font-mono-tech text-[10px] bg-slate-100 px-2.5 py-0.5 rounded-full text-[#64748b]">
+                    <span className="text-[10px] bg-slate-100 px-2.5 py-0.5 rounded-full text-[#64748b]">
                       {prod.additivesDecoded.length} Regulated Functional{' '}
                       {prod.additivesDecoded.length === 1 ? 'Agent' : 'Agents'}
                     </span>
@@ -352,7 +363,11 @@ export const IngredientClarityScreen: React.FC = () => {
                   {/* Additives List */}
                   <div className="space-y-3">
                     {prod.additivesDecoded.length === 0 ? (
-                      <p className="text-xs text-[#64748b]">No complex chemical food additives detected in this product.</p>
+                      <p className="text-xs text-[#64748b]">
+                        {additivesReviewed
+                          ? 'No additives are recorded for this product.'
+                          : 'Additives have not been reviewed for this product yet. Check the ingredient list on the package.'}
+                      </p>
                     ) : (
                       prod.additivesDecoded.map((additive, i) => (
                         <div
@@ -363,24 +378,24 @@ export const IngredientClarityScreen: React.FC = () => {
                             <div className="flex items-center gap-2">
                               <span className="w-2.5 h-2.5 rounded-full bg-[#5379EE]"></span>
                               <span className="font-bold text-xs text-[#0f172a]">{additive.name}</span>
-                              <span className="font-mono-tech text-[10px] text-[#64748b] bg-slate-200/60 px-1.5 py-0.5 rounded">
+                              <span className="text-[10px] text-[#64748b] bg-slate-200/60 px-1.5 py-0.5 rounded">
                                 {additive.eCode}
                               </span>
                             </div>
-                            <span className="bg-[#EEF2FF] text-[#5379EE] font-mono-tech text-[10px] px-2.5 py-0.5 rounded-full flex items-center gap-1 font-bold">
+                            <span className="bg-[#EEF2FF] text-[#5379EE] text-[10px] px-2.5 py-0.5 rounded-full flex items-center gap-1 font-bold">
                               <span className="material-symbols-outlined text-xs">eco</span>
                               <span>{additive.badge}</span>
                             </span>
                           </div>
 
                           <div className="bg-white p-3 rounded-xl border border-slate-100/80">
-                            <span className="font-mono-tech text-[10px] text-[#5379EE] uppercase font-bold tracking-wide block">
+                            <span className="text-[10px] text-[#5379EE] uppercase font-bold tracking-wide block">
                               Plain English Translation
                             </span>
                             <p className="text-xs text-[#1e293b] mt-0.5 leading-relaxed">{additive.translation}</p>
                           </div>
 
-                          <div className="flex items-center justify-between font-mono-tech text-[11px] text-[#64748b] pt-1">
+                          <div className="flex items-center justify-between text-[11px] text-[#64748b] pt-1">
                             <span>Scientific role: {additive.scientificRole}</span>
                             <span className="text-[#5379EE] font-semibold">{additive.toxicityRisk}</span>
                           </div>
@@ -390,6 +405,12 @@ export const IngredientClarityScreen: React.FC = () => {
                   </div>
                 </div>
 
+                {nutritionMissing ? (
+                  <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-xs text-xs text-[#64748b]">
+                    Sugar and nutrition data are not available for this product. Check the package label.
+                  </div>
+                ) : (
+                <>
                 {/* Section: Sugars & Sweeteners Breakdown */}
                 <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-xs space-y-4">
                   <div className="flex items-center justify-between pb-2 border-b border-slate-100">
@@ -402,13 +423,13 @@ export const IngredientClarityScreen: React.FC = () => {
                         </div>
                         <div>
                           <h2 className="text-base font-bold text-[#0f172a]">Sugars &amp; Sweeteners Breakdown</h2>
-                          <span className="font-mono-tech text-[10px] text-[#64748b] uppercase tracking-wider">
-                            Unmasking Hidden Caloric Densities
+                          <span className="text-[10px] text-[#64748b] uppercase tracking-wider">
+                            Where the Sugar Comes From
                           </span>
                         </div>
                       </div>
                         <span
-                          className={`font-mono-tech text-[10px] px-2.5 py-0.5 rounded-full font-bold ${totalSugars === 0 ? 'bg-[#ecfdf5] text-[#059669]' : 'bg-[#fffbeb] text-[#d97706]'
+                          className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold ${totalSugars === 0 ? 'bg-[#ecfdf5] text-[#059669]' : 'bg-[#fffbeb] text-[#d97706]'
                             }`}
                         >
                           {totalSugars}g Total ({prod.sugarsBreakdown.percentDV}% DV)
@@ -471,8 +492,8 @@ export const IngredientClarityScreen: React.FC = () => {
                               </div>
                             </div>
                             <div className="text-right">
-                              <span className="font-mono-tech text-xs font-bold text-[#0f172a] block">{item.amount}</span>
-                              <span className="font-mono-tech text-[10px] text-[#64748b]">{item.sharePercent}% of sugar load</span>
+                              <span className="text-xs font-bold text-[#0f172a] block">{item.amount}</span>
+                              <span className="text-[10px] text-[#64748b]">{item.sharePercent}% of sugar load</span>
                             </div>
                           </div>
                         ))}
@@ -480,8 +501,8 @@ export const IngredientClarityScreen: React.FC = () => {
 
                       {/* Glycemic Spark Visual */}
                       <div className="bg-[#f8fafc] rounded-2xl p-4 border border-slate-100 space-y-2">
-                        <div className="flex justify-between font-mono-tech text-[10px] text-[#64748b]">
-                          <span>Estimated Glycemic Index Impact</span>
+                        <div className="flex justify-between text-[10px] text-[#64748b]">
+                          <span>Estimated Glycemic Impact</span>
                           <span
                             className={`font-bold ${totalSugars === 0 ? 'text-[#059669]' : 'text-[#d97706]'
                               }`}
@@ -505,7 +526,9 @@ export const IngredientClarityScreen: React.FC = () => {
                         <p className="text-[11px] text-[#64748b]">{glycemicExplanation}</p>
                       </div>
                     </div>
-                  </div>
+                  </>
+                )}
+                </div>
 
                   {/* Right Column: Whole Foods, Verdict & Actions (5 Cols) */}
                   <div className="lg:col-span-5 space-y-6">
@@ -516,25 +539,28 @@ export const IngredientClarityScreen: React.FC = () => {
                           <span className="material-symbols-outlined text-base">spa</span>
                         </div>
                         <div>
-                          <h2 className="text-base font-bold text-[#0f172a]">Whole Foods &amp; Staples</h2>
-                          <span className="font-mono-tech text-[10px] text-[#64748b] uppercase tracking-wider">
-                            Unadulterated Ingredients
+                          <h2 className="text-base font-bold text-[#0f172a]">Ingredients Without Flags</h2>
+                          <span className="text-[10px] text-[#64748b] uppercase tracking-wider">
+                            No allergen or caution marker
                           </span>
                         </div>
                       </div>
 
                       <div className="space-y-2.5">
+                        {wholeFoodItems.length === 0 && (
+                          <p className="text-xs text-[#64748b]">
+                            {prod.ingredientsAnalysis.length > 0
+                              ? 'Every listed ingredient carries an allergen or caution marker. See the full list in Product Analysis.'
+                              : 'No ingredient list is available for this product.'}
+                          </p>
+                        )}
                         {wholeFoodItems.map((item, idx) => (
                           <div
                             key={idx}
                             className="flex items-center gap-3 p-2.5 rounded-2xl bg-[#f8fafc] border border-slate-100"
                           >
-                            <div className="w-12 h-12 rounded-xl bg-[#EEF2FF] overflow-hidden shrink-0 flex items-center justify-center text-[#5379EE]">
-                              <img
-                                src={getSmartProductFallbackImage(item.name, prod.category)}
-                                alt={item.name}
-                                className="w-full h-full object-cover"
-                              />
+                            <div className="w-10 h-10 rounded-xl bg-[#EEF2FF] shrink-0 flex items-center justify-center text-[#5379EE]">
+                              <span className="material-symbols-outlined text-lg">nutrition</span>
                             </div>
                             <div className="min-w-0">
                               <h4 className="text-xs font-bold text-[#0f172a] truncate">{item.name}</h4>
@@ -553,21 +579,21 @@ export const IngredientClarityScreen: React.FC = () => {
                       </div>
                       <p className="text-xs text-[#1e293b] leading-relaxed">{prod.verdictSummary}</p>
                       <div className="bg-white/80 backdrop-blur-xs rounded-xl p-3 flex items-center justify-between border border-[#c7d2fe]">
-                        <span className="font-mono-tech text-[10px] text-[#64748b] uppercase font-bold">
+                        <span className="text-[10px] text-[#64748b] uppercase font-bold">
                           Dietary Recommendation
                         </span>
-                        <span className="font-mono-tech text-xs font-bold text-[#5379EE]">{prod.dietaryRecommendation}</span>
+                        <span className="text-xs font-bold text-[#5379EE]">{prod.dietaryRecommendation}</span>
                       </div>
                     </div>
 
                     {/* Actions Panel */}
                     <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-xs space-y-3">
-                      <span className="font-mono-tech text-[10px] text-[#64748b] uppercase tracking-wider font-bold block">
+                      <span className="text-[10px] text-[#64748b] uppercase tracking-wider font-bold block">
                         Dietary Actions
                       </span>
                       <button
                         onClick={handleSave}
-                        className={`w-full h-12 rounded-full font-mono-tech text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm cursor-pointer ${savedToCollection
+                        className={`w-full h-12 rounded-full text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm cursor-pointer ${savedToCollection
                               ? 'bg-[#EEF2FF] text-[#5379EE]'
                               : 'bg-[#5379EE] hover:bg-[#4368DD] text-white'
                             }`}
@@ -575,27 +601,27 @@ export const IngredientClarityScreen: React.FC = () => {
                 <span className="material-symbols-outlined text-base">
                   {savedToCollection ? 'bookmark_added' : 'bookmark_add'}
                 </span>
-                <span>{savedToCollection ? 'Saved to Clean Nutrition Log' : 'Save to Safe Foods Collection'}</span>
+                <span>{savedToCollection ? 'Saved to My Collection' : 'Save to My Collection'}</span>
               </button>
 
               <div className="grid grid-cols-2 gap-2.5">
                 <button
-                  onClick={() => alert('PDF clinical summary generated for download.')}
-                  className="h-10 rounded-full bg-[#EEF2FF] hover:bg-[#E0E7FF] text-[#5379EE] font-mono-tech text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  onClick={() => window.print()}
+                  className="h-10 rounded-full bg-[#EEF2FF] hover:bg-[#E0E7FF] text-[#5379EE] text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                 >
                   <span className="material-symbols-outlined text-sm">picture_as_pdf</span>
-                  <span>Export PDF</span>
+                  <span>Print / Save PDF</span>
                 </button>
                 <button
                   onClick={() => {
-                    navigator.clipboard?.writeText(window.location.href);
-                    setToastMsg('Share link copied!');
+                    navigator.clipboard?.writeText(`${prod.name} (${prod.brand}), barcode ${prod.barcode}`);
+                    setToastMsg('Product name and barcode copied');
                     setTimeout(() => setToastMsg(null), 2000);
                   }}
-                  className="h-10 rounded-full bg-[#f1f5f9] hover:bg-slate-200 text-[#0f172a] font-mono-tech text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  className="h-10 rounded-full bg-[#f1f5f9] hover:bg-slate-200 text-[#0f172a] text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                 >
-                  <span className="material-symbols-outlined text-sm">share</span>
-                  <span>Share Card</span>
+                  <span className="material-symbols-outlined text-sm">content_copy</span>
+                  <span>Copy Details</span>
                 </button>
               </div>
             </div>

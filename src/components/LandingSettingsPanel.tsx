@@ -13,10 +13,9 @@ const SECTIONS: { key: SectionKey; label: string; icon: string; hint: string }[]
   { key: 'join', label: 'Sign-up Band', icon: 'person_add', hint: 'Name + email band (shown twice)' },
   { key: 'steps', label: 'How It Works', icon: 'format_list_numbered', hint: 'Four numbered step cards' },
   { key: 'features', label: 'Feature Grid', icon: 'apps', hint: 'Six icon features with a round side photo' },
-  { key: 'catalog', label: 'Product Carousel', icon: 'view_carousel', hint: 'Products come from the live catalog' },
+  { key: 'catalog', label: 'Product Catalog Page', icon: 'storefront', hint: 'Heading and button on the catalog page' },
   { key: 'decoder', label: 'Label Decoder Cards', icon: 'science', hint: 'E-code explanation cards' },
   { key: 'testimonials', label: 'Testimonials', icon: 'reviews', hint: 'Hidden until you add at least one' },
-  { key: 'gallery', label: 'Product Grid', icon: 'grid_view', hint: 'Products with declared allergens' },
   { key: 'about', label: 'About Panel', icon: 'info', hint: 'Photo on the left, blue panel on the right' },
 ];
 
@@ -116,7 +115,7 @@ const ImageField: React.FC<{
             type="button"
             disabled={busy}
             onClick={() => fileRef.current?.click()}
-            className="px-3 py-1.5 rounded-full bg-[#EEF2FF] hover:bg-[#E0E7FF] text-[#5379EE] font-mono-tech text-[11px] font-bold flex items-center gap-1 cursor-pointer disabled:opacity-50"
+            className="px-3 py-1.5 rounded-full bg-[#EEF2FF] hover:bg-[#E0E7FF] text-[#5379EE] text-[11px] font-bold flex items-center gap-1 cursor-pointer disabled:opacity-50"
           >
             <span className="material-symbols-outlined text-sm">upload</span>
             {busy ? 'Processing…' : 'Upload image'}
@@ -125,7 +124,7 @@ const ImageField: React.FC<{
             <button
               type="button"
               onClick={() => onChange('')}
-              className="px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-[#64748b] font-mono-tech text-[11px] font-bold cursor-pointer"
+              className="px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-[#64748b] text-[11px] font-bold cursor-pointer"
             >
               Remove
             </button>
@@ -203,7 +202,7 @@ export const LandingSettingsPanel: React.FC<{ onToast: (message: string) => void
           {value.map((item, index) => (
             <div key={index} className="p-3 rounded-2xl bg-[#f8fafc] border border-slate-100 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="font-mono-tech text-[10px] font-bold uppercase text-[#64748b]">
+                <span className="text-[10px] font-bold uppercase text-[#64748b]">
                   {isTestimonials ? 'Testimonial' : 'Item'} {index + 1}
                 </span>
                 {isTestimonials && (
@@ -245,7 +244,7 @@ export const LandingSettingsPanel: React.FC<{ onToast: (message: string) => void
             <button
               type="button"
               onClick={() => setField(section, field, [...value, { quote: '', name: '', role: '' }])}
-              className="px-3.5 py-2 rounded-full bg-[#EEF2FF] hover:bg-[#E0E7FF] text-[#5379EE] font-mono-tech text-xs font-bold flex items-center gap-1 cursor-pointer"
+              className="px-3.5 py-2 rounded-full bg-[#EEF2FF] hover:bg-[#E0E7FF] text-[#5379EE] text-xs font-bold flex items-center gap-1 cursor-pointer"
             >
               <span className="material-symbols-outlined text-sm">add</span>
               Add testimonial
@@ -258,7 +257,7 @@ export const LandingSettingsPanel: React.FC<{ onToast: (message: string) => void
     const isImage = /image/i.test(field);
     return (
       <div key={field} className="space-y-1">
-        <label className="block font-mono-tech text-[11px] font-semibold text-[#1e293b]">{labelFor(field)}</label>
+        <label className="block text-[11px] font-semibold text-[#1e293b]">{labelFor(field)}</label>
         {isImage ? (
           <ImageField value={value} onChange={(next) => setField(section, field, next)} onError={onToast} />
         ) : field === 'pageTint' ? (
@@ -274,7 +273,7 @@ export const LandingSettingsPanel: React.FC<{ onToast: (message: string) => void
               type="text"
               value={value}
               onChange={(e) => setField(section, field, e.target.value)}
-              className={`${INPUT_CLASS} h-10 max-w-40 font-mono-tech`}
+              className={`${INPUT_CLASS} h-10 max-w-40`}
             />
           </div>
         ) : LONG_TEXT.has(field) ? (
@@ -315,7 +314,7 @@ export const LandingSettingsPanel: React.FC<{ onToast: (message: string) => void
           <button
             type="button"
             onClick={() => setActiveTab('auth')}
-            className="px-3.5 py-2 rounded-full bg-[#f1f5f9] hover:bg-slate-200 text-[#0f172a] font-mono-tech text-xs font-bold flex items-center gap-1 cursor-pointer"
+            className="px-3.5 py-2 rounded-full bg-[#f1f5f9] hover:bg-slate-200 text-[#0f172a] text-xs font-bold flex items-center gap-1 cursor-pointer"
           >
             <span className="material-symbols-outlined text-sm">visibility</span>
             View front page
@@ -328,7 +327,7 @@ export const LandingSettingsPanel: React.FC<{ onToast: (message: string) => void
                 setDirty(true);
               }
             }}
-            className="px-3.5 py-2 rounded-full bg-[#f1f5f9] hover:bg-slate-200 text-[#0f172a] font-mono-tech text-xs font-bold cursor-pointer"
+            className="px-3.5 py-2 rounded-full bg-[#f1f5f9] hover:bg-slate-200 text-[#0f172a] text-xs font-bold cursor-pointer"
           >
             Load defaults
           </button>
@@ -339,7 +338,7 @@ export const LandingSettingsPanel: React.FC<{ onToast: (message: string) => void
               setDraft(live);
               setDirty(false);
             }}
-            className="px-3.5 py-2 rounded-full bg-[#f1f5f9] hover:bg-slate-200 text-[#0f172a] font-mono-tech text-xs font-bold cursor-pointer disabled:opacity-40"
+            className="px-3.5 py-2 rounded-full bg-[#f1f5f9] hover:bg-slate-200 text-[#0f172a] text-xs font-bold cursor-pointer disabled:opacity-40"
           >
             Discard
           </button>
@@ -347,7 +346,7 @@ export const LandingSettingsPanel: React.FC<{ onToast: (message: string) => void
             type="button"
             disabled={!dirty || saving}
             onClick={handleSave}
-            className="px-4 py-2 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white font-mono-tech text-xs font-bold shadow-xs flex items-center gap-1 cursor-pointer disabled:opacity-40"
+            className="px-4 py-2 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white text-xs font-bold shadow-xs flex items-center gap-1 cursor-pointer disabled:opacity-40"
           >
             <span className={`material-symbols-outlined text-sm ${saving ? 'animate-spin' : ''}`}>
               {saving ? 'refresh' : 'save'}
@@ -379,7 +378,7 @@ export const LandingSettingsPanel: React.FC<{ onToast: (message: string) => void
                     <span className="flex items-center gap-2">
                       <span className="text-sm font-bold text-[#0f172a]">{meta.label}</span>
                       {hidden && (
-                        <span className="px-2 py-0.5 rounded-full bg-slate-100 text-[#64748b] font-mono-tech text-[10px] font-bold">
+                        <span className="px-2 py-0.5 rounded-full bg-slate-100 text-[#64748b] text-[10px] font-bold">
                           HIDDEN
                         </span>
                       )}

@@ -45,7 +45,7 @@ const toManagedUser = (uid: string, data: Record<string, any>): ManagedUser => {
 };
 
 const Pill: React.FC<{ className: string; children: React.ReactNode }> = ({ className, children }) => (
-  <span className={`px-2 py-0.5 rounded-full font-mono-tech text-[10px] font-bold uppercase ${className}`}>{children}</span>
+  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${className}`}>{children}</span>
 );
 
 export const UserManagementPanel: React.FC<{ onToast: (message: string) => void }> = ({ onToast }) => {
@@ -212,7 +212,7 @@ export const UserManagementPanel: React.FC<{ onToast: (message: string) => void 
     run(user.uid, () => resetPassword(user.email), `Password reset email sent to ${user.email}.`);
 
   const actionBtn =
-    'px-3 py-1.5 rounded-full font-mono-tech text-[11px] font-bold transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed';
+    'px-3 py-1.5 rounded-full text-[11px] font-bold transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed';
 
   return (
     <div className="space-y-4">
@@ -226,7 +226,7 @@ export const UserManagementPanel: React.FC<{ onToast: (message: string) => void 
         ].map((card) => (
           <div key={card.label} className="bg-white rounded-3xl p-5 border border-slate-100 shadow-xs flex items-start justify-between">
             <div>
-              <span className="font-mono-tech text-[10px] text-[#64748b] uppercase tracking-wider font-bold">{card.label}</span>
+              <span className="text-[10px] text-[#64748b] uppercase tracking-wider font-bold">{card.label}</span>
               <span className="text-3xl font-extrabold text-[#0f172a] mt-1 block">{loading ? '…' : card.value}</span>
             </div>
             <span className={`w-10 h-10 rounded-full flex items-center justify-center ${card.tone}`}>
@@ -250,7 +250,7 @@ export const UserManagementPanel: React.FC<{ onToast: (message: string) => void 
               key={tab.id}
               type="button"
               onClick={() => setFilter(tab.id)}
-              className={`px-3.5 py-1.5 rounded-lg font-mono-tech text-xs font-bold transition-all cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 filter === tab.id ? 'bg-white text-[#0f172a] shadow-xs' : 'text-[#64748b] hover:text-[#0f172a]'
               }`}
             >
@@ -342,7 +342,7 @@ export const UserManagementPanel: React.FC<{ onToast: (message: string) => void 
                     <span>Active allergens: {user.allergenCount}</span>
                     {user.suspended && <span className="text-[#e11d48]">Suspended {formatDate(user.suspendedAt)}</span>}
                   </div>
-                  <p className="font-mono-tech text-[10px] text-[#94a3b8] truncate">UID {user.uid}</p>
+                  <p className="text-[10px] text-[#94a3b8] truncate">UID {user.uid}</p>
                 </div>
               </div>
 

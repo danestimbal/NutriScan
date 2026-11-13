@@ -31,6 +31,7 @@ export const Header: React.FC = () => {
 
   const navItems: { tab: NavigationTab; label: string }[] = [
     { tab: 'dashboard', label: 'Dashboard' },
+    { tab: 'catalog', label: 'Product Catalog' },
     { tab: 'allergen-radar', label: 'Allergen Radar' },
     { tab: 'product-analysis', label: 'Product Analysis' },
     { tab: 'ingredient-clarity', label: 'Ingredient Clarity' },
@@ -61,7 +62,7 @@ export const Header: React.FC = () => {
               <span className="font-sans text-xl font-black tracking-tight text-white uppercase drop-shadow-xs">
                 INGREGUIDE
               </span>
-              <span className="hidden sm:inline-block px-1.5 py-0.5 rounded-full bg-white/20 text-white font-mono-tech text-[10px] font-bold border border-white/30">
+              <span className="hidden sm:inline-block px-1.5 py-0.5 rounded-full bg-white/20 text-white text-[10px] font-bold border border-white/30">
                 RS-IV
               </span>
             </div>
@@ -122,7 +123,7 @@ export const Header: React.FC = () => {
                       <div className="flex items-center gap-1.5">
                         <span className="text-xs font-bold text-[#0f172a] truncate">{prod.name}</span>
                         <span
-                          className={`font-mono-tech text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
                             prod.nutriScore === 'A'
                               ? 'bg-[#e0e7ff] text-[#4338ca]'
                               : prod.nutriScore === 'B'
@@ -130,7 +131,7 @@ export const Header: React.FC = () => {
                               : 'bg-[#fffbeb] text-[#d97706]'
                           }`}
                         >
-                          Score {prod.nutriScore}
+                          {(prod.dataGaps || []).includes('nutriScore') ? 'Not rated' : `Grade ${prod.nutriScore}`}
                         </span>
                       </div>
                       <span className="text-[11px] text-[#64748b] truncate block">
@@ -173,22 +174,7 @@ export const Header: React.FC = () => {
 
         {/* Action Controls & Profile Avatar */}
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Admin shortcut button */}
-          {isAdmin && (
-          <button
-            onClick={() => setActiveTab('admin')}
-            className={`hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-mono-tech text-[11px] font-bold transition-colors ${
-              activeTab === 'admin'
-                ? 'bg-white text-[#4368dd]'
-                : 'bg-white/15 text-white hover:bg-white/25 border border-white/20'
-            }`}
-          >
-            <span className="material-symbols-outlined text-sm">shield_person</span>
-            <span>Admin</span>
-          </button>
-          )}
-
-          {/* User Profile Avatar / Menu */}
+          {/* User Profile Avatar / Menu (the Admin Console link lives in this dropdown) */}
           <div className="relative">
             <button
               onClick={() => setShowUserMenu(!showUserMenu)}
@@ -231,10 +217,26 @@ export const Header: React.FC = () => {
                   )}
                   <span className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#e0e7ff] text-[#4338ca] text-[10px] font-bold">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#5379EE]"></span>
-                    Bio-Shield Active
+                    {userProfile.activeAllergens.filter((a) => a.active).length} allergens on
                   </span>
                 </div>
                 <div className="pt-1">
+                  {isAdmin && (
+                    <button
+                      onClick={() => {
+                        setActiveTab('admin');
+                        setShowUserMenu(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 mb-1 text-xs font-bold rounded-xl flex items-center gap-2 cursor-pointer ${
+                        activeTab === 'admin'
+                          ? 'bg-[#5379EE] text-white'
+                          : 'bg-[#eef2ff] text-[#4368dd] hover:bg-[#e0e7ff]'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-sm">shield_person</span>
+                      Admin Console
+                    </button>
+                  )}
                   <button
                     onClick={() => {
                       setActiveTab('onboarding');
@@ -243,7 +245,7 @@ export const Header: React.FC = () => {
                     className="w-full text-left px-3 py-2 text-xs font-medium text-[#1e293b] hover:bg-[#eef2ff] rounded-xl flex items-center gap-2"
                   >
                     <span className="material-symbols-outlined text-sm text-[#5379EE]">tune</span>
-                    Personalize Shield (Onboarding)
+                    Edit My Profile
                   </button>
                   <button
                     onClick={() => {
@@ -256,18 +258,6 @@ export const Header: React.FC = () => {
                     Edit Allergen Radar
                   </button>
                   <PWAInstallButton variant="menu" />
-                  {isAdmin && (
-                  <button
-                    onClick={() => {
-                      setActiveTab('admin');
-                      setShowUserMenu(false);
-                    }}
-                    className="w-full text-left px-3 py-2 text-xs font-medium text-[#1e293b] hover:bg-[#eef2ff] rounded-xl flex items-center gap-2"
-                  >
-                    <span className="material-symbols-outlined text-sm text-[#0f172a]">admin_panel_settings</span>
-                    Operations Console
-                  </button>
-                  )}
                   <button
                     onClick={() => {
                       setActiveTab('auth');

@@ -12,6 +12,7 @@ import { ProductAnalysisScreen } from './screens/ProductAnalysisScreen';
 import { IngredientClarityScreen } from './screens/IngredientClarityScreen';
 import { AllergenRadarScreen } from './screens/AllergenRadarScreen';
 import { AdminScreen } from './screens/AdminScreen';
+import { CatalogScreen } from './screens/CatalogScreen';
 import { OnboardingProfileScreen } from './screens/OnboardingProfileScreen';
 
 const MainContent: React.FC = () => {
@@ -50,6 +51,7 @@ const MainContent: React.FC = () => {
         {activeTab === 'ingredient-clarity' && <IngredientClarityScreen />}
         {activeTab === 'allergen-radar' && <AllergenRadarScreen />}
         {activeTab === 'admin' && <AdminScreen />}
+        {activeTab === 'catalog' && <CatalogScreen />}
       </main>
 
       {/* Global Footer */}
@@ -68,7 +70,7 @@ const MainContent: React.FC = () => {
             </span>
           </div>
 
-          <div className="flex items-center gap-6 font-mono-tech text-xs">
+          <div className="flex items-center gap-6 text-xs">
             <button
               onClick={() => setActiveTab('auth')}
               className="hover:text-[#5379EE] transition-colors cursor-pointer"

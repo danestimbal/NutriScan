@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { NutritionHistoryChart } from '../components/NutritionHistoryChart';
-import { ResearchMetricsPanel } from '../components/ResearchMetricsPanel';
-import { findProductByBarcode, getSmartProductFallbackImage, isPlaceholderProductImage } from '../utils/barcode';
+import { findProductByBarcode, getSmartProductFallbackImage, isPlaceholderProductImage, hasGap } from '../utils/barcode';
 
 export const DashboardScreen: React.FC = () => {
   const {
@@ -12,6 +11,9 @@ export const DashboardScreen: React.FC = () => {
     setSelectedProductId,
     scanLogs,
     triggerScanCheck,
+    evaluateForUser,
+    additivePolicies,
+    isLoggedIn,
   } = useApp();
 
   const [activeFilter, setActiveFilter] = useState<'all' | 'safe' | 'warnings' | 'severe'>('all');
@@ -31,11 +33,18 @@ export const DashboardScreen: React.FC = () => {
   const totalScans = scanLogs.length;
   const warningsFlagged = scanLogs.filter((l) => l.verdict === 'HAZARD' || l.verdict === 'WARNING').length;
   const safeScansCount = scanLogs.filter((l) => l.verdict === 'SAFE').length;
-  const safeChoiceRate = totalScans > 0 ? Math.round((safeScansCount / totalScans) * 100) : 100;
-  const savedSwapsCount =
-    userProfile.savedProductIds && userProfile.savedProductIds.length > 0
-      ? userProfile.savedProductIds.length
-      : products.filter((p) => Boolean(p.safeAlternative)).length || 3;
+  const safeChoiceRate = totalScans > 0 ? `${Math.round((safeScansCount / totalScans) * 100)}%` : '—';
+  const savedProductsCount = (userProfile.savedProductIds || []).length;
+
+  /** Each catalog product checked against this user's profile (allergens, watchlist, diets, policies). */
+  const verdictById = React.useMemo(
+    () => new Map(products.map((p) => [p.id, evaluateForUser(p)])),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [products, userProfile.activeAllergens, userProfile.watchlist, userProfile.dietaryPreferences, additivePolicies]
+  );
+  const verdictOf = (id: string) => verdictById.get(id)?.verdict || 'SAFE';
+  const countWith = (verdict: 'SAFE' | 'WARNING' | 'HAZARD') => products.filter((p) => verdictOf(p.id) === verdict).length;
+  const enforcedPolicies = additivePolicies.filter((policy) => policy.isEnforced);
 
   // Recent scanned products derived from Firestore scanLogs first, then catalog fallback
   const recentScannedProducts = React.useMemo(() => {
@@ -58,30 +67,19 @@ export const DashboardScreen: React.FC = () => {
     return list;
   }, [scanLogs, products]);
 
-  // Most recent allergen clash from Firestore-synced scanLogs
+  // Most recent scan that raised an alert for this user (nothing is shown until one happens)
   const latestClashLog = scanLogs.find((l) => l.verdict === 'HAZARD' || l.verdict === 'WARNING');
-  const clashProduct =
-    (latestClashLog && findProductByBarcode(products, latestClashLog.barcode)) ||
-    products.find((p) => p.allergensDetected.length > 0) ||
-    products[0];
+  const clashProduct = latestClashLog ? findProductByBarcode(products, latestClashLog.barcode) : undefined;
   const clashImage =
     clashProduct && !isPlaceholderProductImage(clashProduct.image)
       ? clashProduct.image
       : getSmartProductFallbackImage(clashProduct?.name || latestClashLog?.productName || '', clashProduct?.category);
-  const clashAllergens =
-    latestClashLog?.allergensMatched?.length
-      ? latestClashLog.allergensMatched
-      : clashProduct?.allergensDetected || [];
-  const cleanSwapName =
-    clashProduct?.safeAlternative?.name ||
-    products.find((p) => p.allergensDetected.length === 0 && p.nutriScore === 'A')?.name ||
-    'Nut-Free Pure Amaranth Bites';
 
   const filteredProducts = products.filter((prod) => {
     // Safety status filter
-    if (activeFilter === 'safe' && !(prod.nutriScore === 'A' && prod.allergensDetected.length === 0)) return false;
-    if (activeFilter === 'warnings' && !(prod.allergensDetected.length > 0 && prod.nutriScore !== 'D')) return false;
-    if (activeFilter === 'severe' && !(prod.allergensDetected.includes('Peanut Flour') || prod.nutriScore === 'D')) return false;
+    if (activeFilter === 'safe' && verdictOf(prod.id) !== 'SAFE') return false;
+    if (activeFilter === 'warnings' && verdictOf(prod.id) !== 'WARNING') return false;
+    if (activeFilter === 'severe' && verdictOf(prod.id) !== 'HAZARD') return false;
 
     // Category filter (Figure 3 in IngreGuide RS-IV Plan)
     if (selectedCategory === 'all') return true;
@@ -106,8 +104,8 @@ export const DashboardScreen: React.FC = () => {
             </div>
             <div>
               <span className="text-2xl font-bold text-[#0f172a] block">{totalScans}</span>
-              <span className="font-mono-tech text-[10px] text-[#64748b] uppercase tracking-wider font-semibold">
-                Scans This Month
+              <span className="text-[10px] text-[#64748b] uppercase tracking-wider font-semibold">
+                Total Scans
               </span>
             </div>
           </div>
@@ -118,7 +116,7 @@ export const DashboardScreen: React.FC = () => {
             </div>
             <div>
               <span className="text-2xl font-bold text-[#e11d48] block">{warningsFlagged}</span>
-              <span className="font-mono-tech text-[10px] text-[#64748b] uppercase tracking-wider font-semibold">
+              <span className="text-[10px] text-[#64748b] uppercase tracking-wider font-semibold">
                 Warnings Flagged
               </span>
             </div>
@@ -129,21 +127,21 @@ export const DashboardScreen: React.FC = () => {
               <span className="material-symbols-outlined text-2xl">verified</span>
             </div>
             <div>
-              <span className="text-2xl font-bold text-[#0f172a] block">{safeChoiceRate}%</span>
-              <span className="font-mono-tech text-[10px] text-[#64748b] uppercase tracking-wider font-semibold">
-                Safe Choice Rate
+              <span className="text-2xl font-bold text-[#0f172a] block">{safeChoiceRate}</span>
+              <span className="text-[10px] text-[#64748b] uppercase tracking-wider font-semibold">
+                Scans Without Alerts
               </span>
             </div>
           </div>
 
           <div className="bg-white p-5 rounded-2xl border border-slate-100 flex items-center gap-4 shadow-xs">
             <div className="w-12 h-12 rounded-xl bg-[#f0f3ff] flex items-center justify-center text-[#565e74]">
-              <span className="material-symbols-outlined text-2xl">swap_calls</span>
+              <span className="material-symbols-outlined text-2xl">bookmark</span>
             </div>
             <div>
-              <span className="text-2xl font-bold text-[#0f172a] block">{savedSwapsCount}</span>
-              <span className="font-mono-tech text-[10px] text-[#64748b] uppercase tracking-wider font-semibold">
-                Saved Swaps
+              <span className="text-2xl font-bold text-[#0f172a] block">{savedProductsCount}</span>
+              <span className="text-[10px] text-[#64748b] uppercase tracking-wider font-semibold">
+                Saved Products
               </span>
             </div>
           </div>
@@ -161,8 +159,8 @@ export const DashboardScreen: React.FC = () => {
             <div className="space-y-4 z-10">
               <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm border border-white/30 px-3 py-1 rounded-full">
                 <span className="w-2 h-2 rounded-full bg-white animate-pulse"></span>
-                <span className="font-mono-tech text-[10px] text-white font-bold uppercase tracking-wider">
-                  IngreGuide Barcode Recognition System
+                <span className="text-[10px] text-white font-bold uppercase tracking-wider">
+                  IngreGuide Barcode Scanner
                 </span>
               </div>
 
@@ -195,7 +193,7 @@ export const DashboardScreen: React.FC = () => {
                   <span className="material-symbols-outlined text-white text-2xl">crop_free</span>
                   <div className="text-xs text-white">
                     <p className="font-bold">UPC / EAN Barcode Detector</p>
-                    <p className="text-white/80 text-[11px]">Ready for instant auto-focus</p>
+                    <p className="text-white/80 text-[11px]">Camera, photo upload or manual entry</p>
                   </div>
                 </div>
 
@@ -211,76 +209,78 @@ export const DashboardScreen: React.FC = () => {
             </div>
           </div>
 
-          {/* Card 2: High Alert Allergen Trigger Clash (Synced to latest hazard/warning scan) */}
-          <div className="lg:col-span-5 bg-[#fff1f2] rounded-3xl p-6 sm:p-7 border border-[#ffdad6] flex flex-col justify-between shadow-xs">
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="inline-flex items-center gap-1.5 text-[#e11d48]">
-                  <span className="material-symbols-outlined text-base">warning</span>
-                  <span className="font-mono-tech text-[10px] uppercase font-bold tracking-wider">High Alert Trigger</span>
+          {/* Card 2: the user's most recent real alert */}
+          {latestClashLog ? (
+            <div
+              className={`lg:col-span-5 rounded-3xl p-6 sm:p-7 border flex flex-col justify-between shadow-xs ${
+                latestClashLog.verdict === 'HAZARD' ? 'bg-[#fff1f2] border-[#ffdad6]' : 'bg-[#fffbeb] border-[#fde68a]'
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-bold text-[#0f172a]">Your Latest Alert</h2>
+                  <p className="text-xs text-[#64748b] mt-0.5">
+                    Scanned {latestClashLog.timestamp} • Barcode {latestClashLog.barcode}
+                  </p>
                 </div>
-                <h2 className="text-lg font-bold text-[#0f172a]">Recent Allergen Clash Detected</h2>
-                <p className="text-xs text-[#64748b] mt-0.5">
-                  {latestClashLog
-                    ? `Scanned ${latestClashLog.timestamp} • UPC ${latestClashLog.barcode}`
-                    : `Flagged in catalog • UPC ${clashProduct?.barcode || ''}`}
-                </p>
-              </div>
-              <span className="px-3 py-1 rounded-full bg-[#ffdad6] text-[#93000a] font-mono-tech text-[10px] font-bold uppercase">
-                {latestClashLog?.verdict === 'WARNING' ? 'Warning Trigger' : 'Severe Trigger'}
-              </span>
-            </div>
-
-            <div className="bg-white p-4 rounded-2xl my-4 border border-[#ffdad6] flex items-center gap-3.5 shadow-xs">
-              <img
-                src={clashImage}
-                alt={clashProduct?.name || latestClashLog?.productName || 'Flagged Product'}
-                onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).src = getSmartProductFallbackImage(
-                    clashProduct?.name || '',
-                    clashProduct?.category
-                  );
-                }}
-                className="w-14 h-14 rounded-xl object-cover shrink-0 bg-slate-50"
-              />
-              <div className="flex-1 min-w-0">
-                <h3 className="text-xs font-bold text-[#0f172a] truncate">
-                  {clashProduct?.name || latestClashLog?.productName || 'Flagged Product'}
-                </h3>
-                <div className="flex items-center gap-1.5 flex-wrap mt-1">
-                  {clashAllergens.map((allergen, idx) => (
-                    <span
-                      key={idx}
-                      className="px-2 py-0.5 rounded-full bg-[#fff1f2] text-[#e11d48] font-mono-tech text-[10px] font-bold"
-                    >
-                      {allergen}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between gap-3 flex-wrap pt-1">
-              <div className="flex items-center gap-1 text-xs text-[#0f172a]">
-                <span className="material-symbols-outlined text-[#5379EE] text-base">lightbulb</span>
-                <span className="text-[11px]">
-                  Suggested Clean Alternative:{' '}
-                  <strong className="text-[#5379EE]">{cleanSwapName}</strong>
+                <span
+                  className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase shrink-0 ${
+                    latestClashLog.verdict === 'HAZARD' ? 'bg-[#ffdad6] text-[#93000a]' : 'bg-[#fef3c7] text-[#92400e]'
+                  }`}
+                >
+                  {latestClashLog.verdict === 'HAZARD' ? 'Hazard' : 'Warning'}
                 </span>
               </div>
-              <button
-                onClick={() => {
-                  if (clashProduct) {
+
+              <div className="bg-white p-4 rounded-2xl my-4 border border-slate-100 flex items-center gap-3.5 shadow-xs">
+                <img
+                  src={clashImage}
+                  alt={latestClashLog.productName}
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).src = getSmartProductFallbackImage(
+                      latestClashLog.productName,
+                      clashProduct?.category
+                    );
+                  }}
+                  className="w-14 h-14 rounded-xl object-cover bg-slate-100 shrink-0"
+                />
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-xs font-bold text-[#0f172a] truncate">{latestClashLog.productName}</h3>
+                  <p className="text-xs text-[#1e293b] mt-1">{latestClashLog.verdictLabel}</p>
+                </div>
+              </div>
+
+              {clashProduct && (
+                <button
+                  onClick={() => {
                     setSelectedProductId(clashProduct.id);
-                  }
-                  setActiveTab('product-analysis');
-                }}
-                className="px-4 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-[#0f172a] font-mono-tech text-xs font-bold rounded-full transition-colors shadow-xs"
+                    setActiveTab('product-analysis');
+                  }}
+                  className="self-end h-9 px-4 rounded-full bg-[#0f172a] hover:bg-slate-800 text-white text-xs font-bold transition-colors"
+                >
+                  View Product
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="lg:col-span-5 bg-white rounded-3xl p-6 sm:p-7 border border-slate-100 flex flex-col justify-center items-center text-center shadow-xs">
+              <span className="w-12 h-12 rounded-2xl bg-[#ecfdf5] text-[#059669] flex items-center justify-center">
+                <span className="material-symbols-outlined text-2xl">verified_user</span>
+              </span>
+              <h2 className="text-lg font-bold text-[#0f172a] mt-3">No alerts yet</h2>
+              <p className="text-xs text-[#64748b] mt-1 max-w-xs">
+                {userProfile.activeAllergens.some((a) => a.active)
+                  ? 'When a scanned product conflicts with your profile, it will appear here.'
+                  : 'Switch on your allergens in the Allergen Radar so scans can be checked against them.'}
+              </p>
+              <button
+                onClick={() => setActiveTab('allergen-radar')}
+                className="mt-4 h-9 px-4 rounded-full bg-[#EEF2FF] hover:bg-[#E0E7FF] text-[#5379EE] text-xs font-bold transition-colors"
               >
-                View Safe Swap
+                Open Allergen Radar
               </button>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Main Section: Recent Scans & Product Health Matrix */}
@@ -289,14 +289,14 @@ export const DashboardScreen: React.FC = () => {
             <div>
               <h2 className="text-xl font-bold text-[#0f172a]">Recent Scans &amp; Product Matrix</h2>
               <p className="text-xs text-[#64748b]">
-                Real-time breakdown of allergen alerts, Nutri-Score, and botanical purity.
+                Each product checked against your allergen profile, with its Nutri-Score.
               </p>
             </div>
             {/* Filter Pills */}
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
               <button
                 onClick={() => setActiveFilter('all')}
-                className={`px-3 py-1 rounded-full font-mono-tech text-xs font-bold transition-all ${
+                className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
                   activeFilter === 'all'
                     ? 'bg-[#5379EE] text-white shadow-xs'
                     : 'bg-white text-[#64748b] hover:text-[#0f172a] border border-slate-100'
@@ -306,23 +306,23 @@ export const DashboardScreen: React.FC = () => {
               </button>
               <button
                 onClick={() => setActiveFilter('safe')}
-                className={`px-3 py-1 rounded-full font-mono-tech text-xs font-bold transition-all ${
+                className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
                   activeFilter === 'safe'
                     ? 'bg-[#5379EE] text-white shadow-xs'
                     : 'bg-white text-[#64748b] hover:text-[#0f172a] border border-slate-100'
                 }`}
               >
-                Safe (100%)
+                No conflict ({countWith('SAFE')})
               </button>
               <button
                 onClick={() => setActiveFilter('warnings')}
-                className={`px-3 py-1 rounded-full font-mono-tech text-xs font-bold transition-all ${
+                className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
                   activeFilter === 'warnings'
                     ? 'bg-[#5379EE] text-white shadow-xs'
                     : 'bg-white text-[#64748b] hover:text-[#0f172a] border border-slate-100'
                 }`}
               >
-                Warnings ({products.filter((p) => p.allergensDetected.length > 0).length})
+                Warnings ({countWith('WARNING')})
               </button>
             </div>
           </div>
@@ -344,11 +344,10 @@ export const DashboardScreen: React.FC = () => {
               className="flex items-stretch gap-4 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-2 flex-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             >
               {filteredProducts.map((prod) => {
-                const isHazard = prod.allergensDetected.some((a) =>
-                  userProfile.activeAllergens
-                    .filter((ua) => ua.active)
-                    .some((ua) => a.toLowerCase().includes(ua.name.toLowerCase().split(' ')[0]))
-                );
+                const verdict = verdictOf(prod.id);
+                const isHazard = verdict === 'HAZARD';
+                const isWarning = verdict === 'WARNING';
+                const gradeMissing = hasGap(prod, 'nutriScore');
 
                 return (
                   <div
@@ -373,37 +372,39 @@ export const DashboardScreen: React.FC = () => {
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         />
                         <div className="absolute top-2 left-2 flex items-center gap-1 bg-white/90 backdrop-blur-xs px-2 py-0.5 rounded-full shadow-xs">
-                          <span className="font-mono-tech text-[10px] text-[#64748b] font-bold">SCORE</span>
+                          <span className="text-[10px] text-[#64748b] font-bold">GRADE</span>
                           <span
-                            className={`font-mono-tech text-xs font-extrabold ${
-                              prod.nutriScore === 'A'
-                                ? 'text-[#4338ca]'
-                                : prod.nutriScore === 'B'
-                                ? 'text-[#5379EE]'
-                                : 'text-[#d97706]'
+                            className={`text-xs font-extrabold ${
+                              gradeMissing
+                                ? 'text-[#64748b]'
+                                : prod.nutriScore === 'A' || prod.nutriScore === 'B'
+                                ? 'text-[#047857]'
+                                : prod.nutriScore === 'C'
+                                ? 'text-[#d97706]'
+                                : 'text-[#e11d48]'
                             }`}
                           >
-                            {prod.nutriScore}
+                            {gradeMissing ? '—' : prod.nutriScore}
                           </span>
                         </div>
                         <div
-                          className={`absolute top-2 right-2 px-2 py-0.5 rounded-full flex items-center gap-1 font-mono-tech text-[10px] font-bold shadow-xs ${
+                          className={`absolute top-2 right-2 px-2 py-0.5 rounded-full flex items-center gap-1 text-[10px] font-bold shadow-xs ${
                             isHazard
                               ? 'bg-[#fff1f2] text-[#e11d48]'
-                              : prod.allergensDetected.length > 0
+                              : isWarning
                               ? 'bg-[#fffbeb] text-[#d97706]'
                               : 'bg-[#e0e7ff] text-[#4338ca]'
                           }`}
                         >
                           <span className="material-symbols-outlined text-xs">
-                            {isHazard ? 'warning' : prod.allergensDetected.length > 0 ? 'report' : 'check_circle'}
+                            {isHazard ? 'report' : isWarning ? 'warning' : 'check_circle'}
                           </span>
-                          <span>{isHazard ? 'ALERT' : prod.allergensDetected.length > 0 ? 'FLAGGED' : 'SAFE'}</span>
+                          <span>{isHazard ? 'HAZARD' : isWarning ? 'WARNING' : 'NO CONFLICT'}</span>
                         </div>
                       </div>
 
                       <div>
-                        <span className="text-[11px] text-[#64748b] font-mono-tech uppercase">
+                        <span className="text-[11px] text-[#64748b] uppercase">
                           {prod.brand} • {prod.netWeight}
                         </span>
                         <h3 className="text-sm font-bold text-[#0f172a] truncate">{prod.name}</h3>
@@ -418,12 +419,12 @@ export const DashboardScreen: React.FC = () => {
                         className={`text-[11px] font-bold ${
                           isHazard
                             ? 'text-[#e11d48]'
-                            : prod.allergensDetected.length > 0
+                            : isWarning
                             ? 'text-[#d97706]'
                             : 'text-[#5379EE]'
                         }`}
                       >
-                        {isHazard ? 'Shield Flagged' : prod.allergensDetected.length > 0 ? 'Trace Caution' : 'Verified Safe'}
+                        {verdictById.get(prod.id)?.label || ''}
                       </span>
                       <button
                         onClick={(e) => {
@@ -431,7 +432,7 @@ export const DashboardScreen: React.FC = () => {
                           triggerScanCheck(prod);
                         }}
                         className="w-7 h-7 rounded-full bg-[#f1f5f9] hover:bg-[#5379EE] hover:text-white flex items-center justify-center text-[#64748b] transition-colors"
-                        title="Test Sensory Scan"
+                        title="Log this product as scanned"
                       >
                         <span className="material-symbols-outlined text-base">radar</span>
                       </button>
@@ -456,61 +457,41 @@ export const DashboardScreen: React.FC = () => {
         {/* Nutritional Intake History & 30-Day Trends (Recharts) */}
         <NutritionHistoryChart />
 
-        {/* Research Study Evaluation & Empirical Metrics (IngreGuide RS-IV Section C1 & C3) */}
-        <ResearchMetricsPanel />
-
         {/* Bottom Section: Split 2-Column */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left Column: Daily Nutrition Insight */}
+          {/* Left Column: additives currently flagged by the administrators (from the database) */}
           <div className="lg:col-span-7 bg-white rounded-3xl p-6 sm:p-7 border border-slate-100 shadow-xs flex flex-col justify-between">
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 text-[#5379EE]">
-                  <span className="material-symbols-outlined text-base">science</span>
-                  <span className="font-mono-tech text-[10px] font-bold uppercase tracking-wider">
-                    Scientific Intelligence
-                  </span>
-                </div>
-                <span className="font-mono-tech text-[11px] text-[#64748b]">2 min read</span>
-              </div>
-
               <div>
-                <h3 className="text-lg font-bold text-[#0f172a]">Understanding E-Numbers, Thickeners &amp; Emulsifiers</h3>
+                <h3 className="text-lg font-bold text-[#0f172a]">Additives IngreGuide Flags</h3>
                 <p className="text-xs text-[#64748b] mt-1 leading-relaxed">
-                  Not all additives are harmful. Discover which common stabilizers like E407 (Carrageenan) impact
-                  intestinal mucosa, and safe natural alternatives like cold-water acacia fiber.
+                  A scanned product that lists one of these shows a warning. The list is managed by the administrators.
                 </p>
               </div>
 
-              <div className="grid grid-cols-3 gap-2.5 pt-1">
-                <div className="p-3 rounded-xl bg-[#eef2ff] flex flex-col">
-                  <span className="font-mono-tech text-[11px] text-[#5379EE] font-bold">E412 (Guar Gum)</span>
-                  <span className="text-xs text-[#0f172a] font-medium">Safe Botanical</span>
+              {enforcedPolicies.length === 0 ? (
+                <p className="text-xs text-[#64748b] bg-[#f8fafc] rounded-xl p-3 border border-slate-100">
+                  No additives are being flagged right now.
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                  {enforcedPolicies.map((policy) => (
+                    <div key={policy.eCode} className="p-3 rounded-xl bg-[#eef2ff] flex flex-col">
+                      <span className="text-[11px] text-[#5379EE] font-bold">{policy.eCode}</span>
+                      <span className="text-xs text-[#0f172a] font-medium">{policy.name}</span>
+                    </div>
+                  ))}
                 </div>
-                <div className="p-3 rounded-xl bg-[#fff1f2] flex flex-col">
-                  <span className="font-mono-tech text-[11px] text-[#e11d48] font-bold">E407 (Carrageenan)</span>
-                  <span className="text-xs text-[#0f172a] font-medium">Inflammation Risk</span>
-                </div>
-                <div className="p-3 rounded-xl bg-[#e0e7ff] flex flex-col">
-                  <span className="font-mono-tech text-[11px] text-[#4338ca] font-bold">E322 (Lecithin)</span>
-                  <span className="text-xs text-[#0f172a] font-medium">Sunflower Pure</span>
-                </div>
-              </div>
+              )}
             </div>
 
-            <div className="mt-6 flex items-center justify-between pt-2 border-t border-slate-50">
+            <div className="mt-6 pt-2 border-t border-slate-50">
               <button
-                onClick={() => setActiveTab('ingredient-clarity')}
-                className="inline-flex items-center gap-1 font-mono-tech text-xs font-bold text-[#5379EE] hover:text-[#0f172a] transition-colors"
+                onClick={() => setActiveTab('catalog')}
+                className="inline-flex items-center gap-1 text-xs font-bold text-[#5379EE] hover:text-[#0f172a] transition-colors"
               >
-                <span>Read full additive guide</span>
+                <span>Browse the product catalog</span>
                 <span className="material-symbols-outlined text-sm">arrow_forward</span>
-              </button>
-              <button
-                onClick={() => alert('Article bookmarked to clinical reading list.')}
-                className="text-[11px] text-[#64748b] hover:text-[#0f172a]"
-              >
-                Bookmark Article
               </button>
             </div>
           </div>
@@ -538,7 +519,7 @@ export const DashboardScreen: React.FC = () => {
                       <span className="text-xs font-bold text-[#0f172a] group-hover:text-[#5379EE] transition-colors block">
                         Edit Allergen Radar
                       </span>
-                      <span className="text-[11px] text-[#64748b]">Fine-tune tolerance thresholds &amp; sensitivity</span>
+                      <span className="text-[11px] text-[#64748b]">Choose your allergens and how serious each one is</span>
                     </div>
                   </div>
                   <span className="material-symbols-outlined text-slate-300 group-hover:text-[#5379EE] text-base transition-colors">
@@ -547,21 +528,18 @@ export const DashboardScreen: React.FC = () => {
                 </button>
 
                 <button
-                  onClick={() => {
-                    setSelectedProductId('prod-roasted-granola');
-                    setActiveTab('product-analysis');
-                  }}
+                  onClick={() => setActiveTab('catalog')}
                   className="p-3 rounded-2xl hover:bg-[#eef2ff] transition-colors flex items-center justify-between group text-left"
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-xl bg-[#e0e7ff] flex items-center justify-center text-[#5379EE]">
-                      <span className="material-symbols-outlined text-lg">swap_horiz</span>
+                      <span className="material-symbols-outlined text-lg">storefront</span>
                     </div>
                     <div>
                       <span className="text-xs font-bold text-[#0f172a] group-hover:text-[#5379EE] transition-colors block">
-                        Safe Swaps Directory
+                        Product Catalog
                       </span>
-                      <span className="text-[11px] text-[#64748b]">Browse 4,500+ verified allergen-safe substitutes</span>
+                      <span className="text-[11px] text-[#64748b]">Browse and search all {products.length} products</span>
                     </div>
                   </div>
                   <span className="material-symbols-outlined text-slate-300 group-hover:text-[#5379EE] text-base transition-colors">
@@ -579,9 +557,9 @@ export const DashboardScreen: React.FC = () => {
                     </div>
                     <div>
                       <span className="text-xs font-bold text-[#0f172a] group-hover:text-[#5379EE] transition-colors block">
-                        Add Custom Additive Watch
+                        Edit My Watchlist
                       </span>
-                      <span className="text-[11px] text-[#64748b]">Track artificial sweeteners, dyes, or preservatives</span>
+                      <span className="text-[11px] text-[#64748b]">Ingredients and E-numbers you want to be warned about</span>
                     </div>
                   </div>
                   <span className="material-symbols-outlined text-slate-300 group-hover:text-[#5379EE] text-base transition-colors">
@@ -591,12 +569,10 @@ export const DashboardScreen: React.FC = () => {
               </div>
             </div>
 
-            <div className="pt-4 flex items-center justify-between border-t border-slate-50 text-[11px] text-[#64748b]">
-              <span>Database Synced: 2 min ago</span>
-              <span className="inline-flex items-center gap-1 font-mono-tech text-[#5379EE] font-bold">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#5379EE]"></span>
-                Cloud Sync Active
-              </span>
+            <div className="pt-4 border-t border-slate-50 text-[11px] text-[#64748b]">
+              {isLoggedIn
+                ? 'Your profile and scan history are saved to your account.'
+                : 'You are not signed in. Your profile is saved on this device only.'}
             </div>
           </div>
         </div>

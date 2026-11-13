@@ -11,7 +11,9 @@ import {
   fetchExternalProductByBarcode,
   isPlaceholderProductImage,
   resolveBestProductImage,
+  hasGap,
 } from '../utils/barcode';
+import { ProductEvaluation } from '../utils/allergens';
 
 type CameraStatus = 'starting' | 'active' | 'denied' | 'insecure' | 'unsupported' | 'no-camera' | 'error';
 
@@ -34,12 +36,13 @@ export const ScannerScreen: React.FC = () => {
     scanLogs,
     clearScanLogs,
     triggerScanCheck,
+    recordFailedLookup,
+    hazardAlertProduct,
     addNewProduct,
     updateProduct,
     userProfile,
   } = useApp();
 
-  const [scanMode, setScanMode] = useState<'barcode' | 'ocr'>('barcode');
   const [manualCode, setManualCode] = useState('');
   const [manualError, setManualError] = useState('');
   const [zoomLevel, setZoomLevel] = useState<'1x' | '2x' | '3x'>('1x');
@@ -54,6 +57,7 @@ export const ScannerScreen: React.FC = () => {
   const [targetAcquired, setTargetAcquired] = useState(false);
   const [isDecodingFile, setIsDecodingFile] = useState(false);
   const [detectionModalProduct, setDetectionModalProduct] = useState<FoodProduct | null>(null);
+  const [detectionResult, setDetectionResult] = useState<ProductEvaluation | null>(null);
   const [notFoundCode, setNotFoundCode] = useState<string | null>(null);
   const [toastHint, setToastHint] = useState(DEFAULT_HINT);
 
@@ -74,38 +78,49 @@ export const ScannerScreen: React.FC = () => {
 
   // Pause camera result handling while a result modal is open
   useEffect(() => {
-    modalOpenRef.current = !!detectionModalProduct || !!notFoundCode;
-  }, [detectionModalProduct, notFoundCode]);
+    modalOpenRef.current = !!detectionModalProduct || !!notFoundCode || !!hazardAlertProduct;
+  }, [detectionModalProduct, notFoundCode, hazardAlertProduct]);
 
-  const handleScanProduct = (prod: FoodProduct) => {
-    triggerScanCheck(prod);
+  /** Checks the product against the user's profile, logs the scan and shows the verdict. */
+  const handleScanProduct = (prod: FoodProduct, lookupMs?: number) => {
+    const result = triggerScanCheck(prod, lookupMs === undefined ? undefined : { lookupMs });
     setNotFoundCode(null);
-    setDetectionModalProduct(prod);
+    setDetectionResult(result);
+    // A hazard with the full-screen warning switched on is shown by that warning alone.
+    const takeoverShown = result.verdict === 'HAZARD' && userProfile.sentrySettings.pushTakeover;
+    setDetectionModalProduct(takeoverShown ? null : prod);
   };
 
-  /** Looks up a decoded barcode locally first, then queries RetailerAPI + Open Food Facts. */
-  const handleBarcodeResult = async (code: string) => {
+  /**
+   * Finds the product for a barcode: the catalog first, then the online sources.
+   * `lookupMs` is the measured time from barcode to product record (or to "not found").
+   */
+  const lookupBarcode = async (code: string): Promise<{ product: FoodProduct | null; lookupMs: number }> => {
+    const start = performance.now();
     const match = findProductByBarcode(products, code);
     if (match) {
-      if (isPlaceholderProductImage(match.image)) {
-        const betterImage = await resolveBestProductImage(match);
-        const enriched = { ...match, image: betterImage };
-        await updateProduct(enriched);
-        handleScanProduct(enriched);
-      } else {
-        handleScanProduct(match);
-      }
-      return;
+      const lookupMs = performance.now() - start;
+      if (!isPlaceholderProductImage(match.image)) return { product: match, lookupMs };
+      const enriched = { ...match, image: await resolveBestProductImage(match) };
+      await updateProduct(enriched);
+      return { product: enriched, lookupMs };
     }
 
-    setToastHint(`Looking up barcode ${code} via RetailerAPI...`);
+    setToastHint(`Looking up barcode ${code} online...`);
     const externalProduct = await fetchExternalProductByBarcode(code);
+    const lookupMs = performance.now() - start;
     setToastHint(DEFAULT_HINT);
+    if (externalProduct) await addNewProduct(externalProduct);
+    return { product: externalProduct, lookupMs };
+  };
 
-    if (externalProduct) {
-      await addNewProduct(externalProduct);
-      handleScanProduct(externalProduct);
+  /** Handles a barcode decoded by the camera or from an uploaded photo. */
+  const handleBarcodeResult = async (code: string) => {
+    const { product, lookupMs } = await lookupBarcode(code);
+    if (product) {
+      handleScanProduct(product, lookupMs);
     } else {
+      recordFailedLookup(lookupMs);
       setDetectionModalProduct(null);
       setNotFoundCode(code);
     }
@@ -284,28 +299,12 @@ export const ScannerScreen: React.FC = () => {
       return;
     }
     setManualError('');
-    const match = findProductByBarcode(products, code);
-    if (match) {
-      if (isPlaceholderProductImage(match.image)) {
-        const betterImage = await resolveBestProductImage(match);
-        const enriched = { ...match, image: betterImage };
-        await updateProduct(enriched);
-        handleScanProduct(enriched);
-      } else {
-        handleScanProduct(match);
-      }
-      return;
-    }
-
-    setToastHint(`Looking up barcode ${code} via RetailerAPI...`);
-    const externalProduct = await fetchExternalProductByBarcode(code);
-    setToastHint(DEFAULT_HINT);
-
-    if (externalProduct) {
-      await addNewProduct(externalProduct);
-      handleScanProduct(externalProduct);
+    const { product, lookupMs } = await lookupBarcode(code);
+    if (product) {
+      handleScanProduct(product, lookupMs);
     } else {
-      setManualError(`No product with barcode ${code} was found in local catalog or RetailerAPI.`);
+      recordFailedLookup(lookupMs);
+      setManualError(`No product with barcode ${code} was found in the catalog or online.`);
     }
   };
 
@@ -334,13 +333,31 @@ export const ScannerScreen: React.FC = () => {
   };
 
   const activeAllergenCount = userProfile.activeAllergens.filter((a) => a.active).length;
+  const VERDICT_STYLES = {
+    HAZARD: { badge: 'bg-[#fff1f2] text-[#e11d48]', icon: 'report', title: 'Conflicts with your allergen profile' },
+    WARNING: { badge: 'bg-[#fffbeb] text-[#b45309]', icon: 'warning', title: 'Check before eating' },
+    SAFE: { badge: 'bg-[#ecfdf5] text-[#047857]', icon: 'check_circle', title: 'No conflict with your profile' },
+  } as const;
+  const verdictStyle = VERDICT_STYLES[detectionResult?.verdict || 'SAFE'];
+  const declaredAllergens = detectionModalProduct?.allergensDetected || [];
+  const verdictDetail =
+    detectionResult?.verdict === 'SAFE'
+      ? `${
+          declaredAllergens.length > 0
+            ? `Declared allergens: ${declaredAllergens.join(', ')}.`
+            : 'No allergens are declared for this product.'
+        }${activeAllergenCount === 0 ? ' You have no allergens switched on, so nothing was checked.' : ''}`
+      : detectionResult?.label || '';
+  const recentLookups = scanLogs
+    .filter((log, index, all) => all.findIndex((other) => other.barcode === log.barcode) === index)
+    .slice(0, 4);
 
   return (
     <div className="w-full min-h-screen bg-[#f9f9ff] text-[#111c2d] pb-24 lg:pb-16 pt-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         {/* Status Ribbon & Breadcrumb */}
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-2 font-mono-tech text-xs text-[#64748b]">
+          <div className="flex items-center gap-2 text-xs text-[#64748b]">
             <button onClick={() => setActiveTab('dashboard')} className="hover:text-[#0f172a] transition-colors flex items-center gap-1">
               <span className="material-symbols-outlined text-sm">dashboard</span>
               <span>Dashboard</span>
@@ -368,7 +385,7 @@ export const ScannerScreen: React.FC = () => {
               ></span>
             </span>
             <span
-              className={`font-mono-tech text-[10px] sm:text-xs font-bold uppercase tracking-wider ${
+              className={`text-[10px] sm:text-xs font-bold uppercase tracking-wider ${
                 cameraActive ? 'text-[#4338ca]' : cameraStatus === 'starting' ? 'text-[#64748b]' : 'text-[#e11d48]'
               }`}
             >
@@ -384,47 +401,15 @@ export const ScannerScreen: React.FC = () => {
         {/* Header with Mode Switcher */}
         <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-100 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="max-w-2xl">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="font-mono-tech text-[10px] uppercase tracking-widest text-[#5379EE] font-bold">
-                IngreGuide Optical Engine
-              </span>
-              <span className="text-slate-300">•</span>
-              <span className="font-mono-tech text-[10px] text-[#64748b]">Zero-Latency Vision</span>
-            </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-[#0f172a] tracking-tight">
-              Multi-Modal Barcode &amp; Ingredient Scanner
+              Barcode Scanner
             </h1>
             <p className="text-xs sm:text-sm text-[#64748b] mt-1 leading-relaxed">
-              Scan barcodes, QR codes, or packaging labels using your webcam or uploaded packaging photos for instantaneous
-              allergen cross-referencing.
+              Scan a product barcode with your camera, upload a photo of it, or type the number. The product is
+              then checked against your allergen profile.
             </p>
           </div>
 
-          {/* Mode Switcher */}
-          <div className="flex items-center p-1 bg-[#f1f5f9] rounded-full self-start lg:self-center shadow-inner">
-            <button
-              onClick={() => setScanMode('barcode')}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-full font-mono-tech text-xs font-bold transition-all ${
-                scanMode === 'barcode'
-                  ? 'bg-white text-[#0f172a] shadow-xs'
-                  : 'text-[#64748b] hover:text-[#0f172a]'
-              }`}
-            >
-              <span className="material-symbols-outlined text-base text-[#5379EE]">barcode_reader</span>
-              <span>UPC / EAN Lens</span>
-            </button>
-            <button
-              onClick={() => setScanMode('ocr')}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-full font-mono-tech text-xs font-bold transition-all ${
-                scanMode === 'ocr'
-                  ? 'bg-white text-[#0f172a] shadow-xs'
-                  : 'text-[#64748b] hover:text-[#0f172a]'
-              }`}
-            >
-              <span className="material-symbols-outlined text-base text-[#5379EE]">document_scanner</span>
-              <span>Label OCR Reader</span>
-            </button>
-          </div>
         </div>
 
         {/* 2-Column Workspace */}
@@ -435,16 +420,16 @@ export const ScannerScreen: React.FC = () => {
             <div className="bg-[#0f172a] rounded-3xl overflow-hidden shadow-xl border border-slate-800 flex flex-col relative">
               {/* Top Bar Overlay */}
               <div className="bg-[#0f172a]/85 backdrop-blur-md px-4 py-2.5 flex items-center justify-between z-20 border-b border-white/5">
-                <div className="flex items-center gap-2 text-[#f1f5f9] font-mono-tech text-xs">
+                <div className="flex items-center gap-2 text-[#f1f5f9] text-xs">
                   <span className="material-symbols-outlined text-[#38bdf8] text-sm animate-pulse">videocam</span>
                   <span>{cameraActive ? `Live Camera${resolution ? ` (${resolution})` : ''}` : 'Camera Offline'}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 rounded-full bg-white/10 text-white font-mono-tech text-[10px]">
-                    {scanMode === 'barcode' ? 'BARCODE' : 'LABEL'}
+                  <span className="px-2 py-0.5 rounded-full bg-white/10 text-white text-[10px]">
+                    BARCODE
                   </span>
                   {cameraActive && (
-                    <span className="px-2 py-0.5 rounded-full bg-[#5379EE]/30 text-[#93c5fd] font-mono-tech text-[10px]">
+                    <span className="px-2 py-0.5 rounded-full bg-[#5379EE]/30 text-[#93c5fd] text-[10px]">
                       AUTO-DETECT
                     </span>
                   )}
@@ -479,7 +464,7 @@ export const ScannerScreen: React.FC = () => {
                     {(cameraStatus === 'denied' || cameraStatus === 'error' || cameraStatus === 'no-camera') && (
                       <button
                         onClick={() => setCameraRetryKey((k) => k + 1)}
-                        className="h-8 px-4 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white font-mono-tech text-xs font-bold transition-all"
+                        className="h-8 px-4 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white text-xs font-bold transition-all"
                       >
                         Retry Camera
                       </button>
@@ -504,8 +489,8 @@ export const ScannerScreen: React.FC = () => {
                   {/* Center Crosshair */}
                   <div className="opacity-40 flex flex-col items-center justify-center">
                     <span className="material-symbols-outlined text-white text-3xl">center_focus_strong</span>
-                    <span className="font-mono-tech text-[10px] text-white/90 uppercase tracking-widest mt-1">
-                      {scanMode === 'barcode' ? 'Center Barcode' : 'Align Nutrition Label'}
+                    <span className="text-[10px] text-white/90 uppercase tracking-widest mt-1">
+                      Center Barcode
                     </span>
                   </div>
 
@@ -513,7 +498,7 @@ export const ScannerScreen: React.FC = () => {
                   {targetAcquired && (
                     <div className="absolute bottom-2 right-2 bg-[#0f172a]/90 backdrop-blur-md px-2 py-0.5 rounded-md flex items-center gap-1.5 shadow-md">
                       <span className="w-1.5 h-1.5 rounded-full bg-[#38bdf8] animate-ping"></span>
-                      <span className="font-mono-tech text-[10px] text-[#e0f2fe] uppercase font-bold">Target Acquired</span>
+                      <span className="text-[10px] text-[#e0f2fe] uppercase font-bold">Target Acquired</span>
                     </div>
                   )}
                 </div>
@@ -548,7 +533,7 @@ export const ScannerScreen: React.FC = () => {
                     </span>
                   </div>
                   {resolution && (
-                    <span className="px-2.5 py-1 rounded-full bg-[#f1f5f9] text-[#0f172a] font-mono-tech text-xs font-bold">
+                    <span className="px-2.5 py-1 rounded-full bg-[#f1f5f9] text-[#0f172a] text-xs font-bold">
                       {resolution}
                     </span>
                   )}
@@ -565,7 +550,7 @@ export const ScannerScreen: React.FC = () => {
                         key={z}
                         disabled={!zoomRange}
                         onClick={() => handleZoom(z)}
-                        className={`px-2.5 py-1 rounded-full font-mono-tech text-[11px] font-bold transition-all disabled:cursor-not-allowed ${
+                        className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-all disabled:cursor-not-allowed ${
                           zoomLevel === z ? 'bg-white text-[#0f172a] shadow-xs' : 'text-[#64748b] hover:text-[#0f172a]'
                         }`}
                       >
@@ -578,7 +563,7 @@ export const ScannerScreen: React.FC = () => {
                     onClick={handleToggleTorch}
                     disabled={!torchSupported}
                     title={torchSupported ? 'Toggle flashlight' : 'Flashlight is not supported by this camera'}
-                    className={`h-9 px-3 rounded-full font-mono-tech text-xs font-bold flex items-center gap-1 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                    className={`h-9 px-3 rounded-full text-xs font-bold flex items-center gap-1 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                       torchOn ? 'bg-[#5379EE] text-white' : 'bg-[#f1f5f9] text-[#64748b] hover:text-[#0f172a]'
                     }`}
                   >
@@ -611,10 +596,7 @@ export const ScannerScreen: React.FC = () => {
                 </div>
                 <div className="flex-1 text-center sm:text-left">
                   <div className="flex items-center justify-center sm:justify-start gap-2">
-                    <h3 className="font-bold text-sm text-[#0f172a]">Upload Packaging Imagery</h3>
-                    <span className="px-2 py-0.5 rounded-full bg-[#EEF2FF] text-[#2563EB] font-mono-tech text-[10px] font-bold">
-                      OCR + EAN
-                    </span>
+                    <h3 className="font-bold text-sm text-[#0f172a]">Upload a Barcode Photo</h3>
                   </div>
                   <p className="text-xs text-[#64748b] mt-1">
                     Choose a clear, close-up photo of the package barcode (PNG, JPG, or WEBP) to decode it.
@@ -622,7 +604,7 @@ export const ScannerScreen: React.FC = () => {
                 </div>
                 <button
                   type="button"
-                  className="h-10 px-5 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white font-mono-tech text-xs font-bold flex items-center justify-center gap-1.5 transition-all shrink-0"
+                  className="h-10 px-5 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all shrink-0"
                 >
                   <span className="material-symbols-outlined text-base">folder_open</span>
                   <span>Browse Files</span>
@@ -636,46 +618,47 @@ export const ScannerScreen: React.FC = () => {
                 />
               </div>
 
-              <div className="mt-4 pt-3 border-t border-slate-50 flex flex-wrap items-center justify-between text-[#64748b] text-[11px] gap-2">
-                <span className="flex items-center gap-1">
-                  <span className="material-symbols-outlined text-xs text-[#5379EE]">check_circle</span>
-                  Auto-deskews curved cans &amp; pouches
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="material-symbols-outlined text-xs text-[#5379EE]">check_circle</span>
-                  High dynamic range shadow rejection
-                </span>
-              </div>
             </div>
           </div>
 
           {/* RIGHT: Manual Code Lookup, Simulator & Live Feed (5 Cols) */}
           <div className="lg:col-span-5 flex flex-col gap-6">
-            {/* Emergency Allergen Shield Active Alert Banner */}
-            <div className="bg-[#fff1f2] rounded-3xl p-5 border border-[#ffdad6] relative overflow-hidden flex items-start gap-3.5 shadow-xs">
-              <div className="w-1.5 bg-[#e11d48] absolute left-0 top-0 bottom-0"></div>
-              <div className="w-10 h-10 rounded-full bg-[#ffdad6] text-[#e11d48] flex items-center justify-center shrink-0">
-                <span className="material-symbols-outlined text-xl">shield_with_heart</span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-sm font-bold text-[#e11d48]">Emergency Allergen Shield Active</h2>
-                  <span className="w-2 h-2 rounded-full bg-[#e11d48] animate-ping"></span>
+            {/* Allergen alert status (reflects the user's real settings) */}
+            {activeAllergenCount > 0 ? (
+              <div className="bg-[#fff1f2] rounded-3xl p-5 border border-[#ffdad6] relative overflow-hidden flex items-start gap-3.5 shadow-xs">
+                <div className="w-1.5 bg-[#e11d48] absolute left-0 top-0 bottom-0"></div>
+                <div className="w-10 h-10 rounded-full bg-[#ffdad6] text-[#e11d48] flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined text-xl">shield_with_heart</span>
                 </div>
-                <p className="text-xs text-[#64748b] mt-1 leading-relaxed">
-                  Scanning will immediately halt and trigger audible/visual warnings if active profile allergens are
-                  detected ({activeAllergenCount} active targets).
-                </p>
-                <div className="flex items-center gap-2 mt-2">
-                  <span className="px-2 py-0.5 rounded-full bg-white text-[#e11d48] font-mono-tech text-[10px] font-bold">
-                    STRICT PROFILE
-                  </span>
-                  <span className="px-2 py-0.5 rounded-full bg-white text-[#64748b] font-mono-tech text-[10px] font-bold">
-                    Audio Sirens On
-                  </span>
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-sm font-bold text-[#e11d48]">Allergen alerts are on</h2>
+                  <p className="text-xs text-[#64748b] mt-1 leading-relaxed">
+                    Every scan is checked against your {activeAllergenCount} active{' '}
+                    {activeAllergenCount === 1 ? 'allergen' : 'allergens'}. A match with an allergen you marked as anaphylactic shows a red warning
+                    {userProfile.sentrySettings.audibleTone ? ' and plays an alert tone' : ''}.
+                  </p>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="bg-white rounded-3xl p-5 border border-slate-200 flex items-start gap-3.5 shadow-xs">
+                <div className="w-10 h-10 rounded-full bg-slate-100 text-[#64748b] flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined text-xl">shield</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-sm font-bold text-[#0f172a]">No allergens switched on</h2>
+                  <p className="text-xs text-[#64748b] mt-1 leading-relaxed">
+                    Scans will not raise allergen alerts until you choose your allergens.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('allergen-radar')}
+                    className="mt-2 text-xs font-bold text-[#5379EE] hover:underline cursor-pointer"
+                  >
+                    Set up Allergen Radar
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Manual Code Lookup Card */}
             <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-xs space-y-4">
@@ -701,7 +684,7 @@ export const ScannerScreen: React.FC = () => {
                   />
                   <button
                     onClick={() => handleManualSearch()}
-                    className="absolute right-1.5 h-8 px-4 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white font-mono-tech text-xs font-bold transition-all"
+                    className="absolute right-1.5 h-8 px-4 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white text-xs font-bold transition-all"
                   >
                     Search
                   </button>
@@ -709,101 +692,45 @@ export const ScannerScreen: React.FC = () => {
                 {manualError && <p className="text-[11px] text-[#e11d48] pl-3">{manualError}</p>}
               </div>
 
-              {/* Recent Lookups Pills */}
-              <div>
-                <span className="font-mono-tech text-[10px] text-[#64748b] uppercase tracking-wider block mb-2 font-bold">
-                  Recent Lookups
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  <button
-                    onClick={() => {
-                      setManualCode('016000275270');
-                      handleManualSearch('016000275270');
-                    }}
-                    className="px-2.5 py-1 rounded-full bg-[#f8fafc] hover:bg-[#EEF2FF] text-[#0f172a] text-[11px] font-medium border border-slate-200/60 transition-colors flex items-center gap-1 cursor-pointer"
-                  >
-                    <span className="material-symbols-outlined text-xs text-[#5379EE]">history</span>
-                    <span>016000275270 (Granola Bar)</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setManualCode('894700010045');
-                      handleManualSearch('894700010045');
-                    }}
-                    className="px-2.5 py-1 rounded-full bg-[#f8fafc] hover:bg-[#EEF2FF] text-[#0f172a] text-[11px] font-medium border border-slate-200/60 transition-colors flex items-center gap-1 cursor-pointer"
-                  >
-                    <span className="material-symbols-outlined text-xs text-[#5379EE]">history</span>
-                    <span>894700010045 (Chobani Greek)</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setManualCode('051500255162');
-                      handleManualSearch('051500255162');
-                    }}
-                    className="px-2.5 py-1 rounded-full bg-[#f8fafc] hover:bg-[#EEF2FF] text-[#0f172a] text-[11px] font-medium border border-slate-200/60 transition-colors flex items-center gap-1 cursor-pointer"
-                  >
-                    <span className="material-symbols-outlined text-xs text-[#5379EE]">history</span>
-                    <span>051500255162 (Jif Peanut Butter)</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setManualCode('049000028904');
-                      handleManualSearch('049000028904');
-                    }}
-                    className="px-2.5 py-1 rounded-full bg-[#f8fafc] hover:bg-[#EEF2FF] text-[#0f172a] text-[11px] font-medium border border-slate-200/60 transition-colors flex items-center gap-1 cursor-pointer"
-                  >
-                    <span className="material-symbols-outlined text-xs text-[#5379EE]">history</span>
-                    <span>049000028904 (Coca-Cola)</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Simulator Test Suite */}
-              <div className="p-3.5 rounded-2xl bg-[#f8fafc] border border-slate-200/70 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-mono-tech text-[10px] text-[#0f172a] uppercase font-bold tracking-wider">
-                    Simulator Test Suite
+              {/* Recent lookups from the user's own scan history */}
+              {recentLookups.length > 0 && (
+                <div>
+                  <span className="text-[10px] text-[#64748b] uppercase tracking-wider block mb-2 font-bold">
+                    Recent Lookups
                   </span>
-                  <span className="font-mono-tech text-[10px] text-[#5379EE]">Click to Inject</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {recentLookups.map((log) => (
+                      <button
+                        key={log.barcode}
+                        onClick={() => {
+                          setManualCode(log.barcode);
+                          handleManualSearch(log.barcode);
+                        }}
+                        className="px-2.5 py-1 rounded-full bg-[#f8fafc] hover:bg-[#EEF2FF] text-[#0f172a] text-[11px] font-medium border border-slate-200/60 transition-colors flex items-center gap-1 cursor-pointer max-w-full"
+                      >
+                        <span className="material-symbols-outlined text-xs text-[#5379EE]">history</span>
+                        <span className="truncate">
+                          {log.barcode} ({log.productName})
+                        </span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => handleScanProduct(products[6] || products[0])}
-                    className="p-2.5 rounded-xl bg-white hover:bg-[#fff1f2] border border-slate-200/60 text-left transition-colors flex flex-col"
-                  >
-                    <div className="flex items-center justify-between w-full">
-                      <span className="font-mono-tech text-xs font-bold text-[#e11d48]">Peanut Honey Oat</span>
-                      <span className="material-symbols-outlined text-[#e11d48] text-sm">warning</span>
-                    </div>
-                    <span className="text-[10px] text-[#64748b] mt-0.5">Triggers Allergen Shield</span>
-                  </button>
-
-                  <button
-                    onClick={() => handleScanProduct(products[7] || products[1])}
-                    className="p-2.5 rounded-xl bg-white hover:bg-[#EEF2FF] border border-slate-200/60 text-left transition-colors flex flex-col"
-                  >
-                    <div className="flex items-center justify-between w-full">
-                      <span className="font-mono-tech text-xs font-bold text-[#2563EB]">Pure Matcha</span>
-                      <span className="material-symbols-outlined text-[#5379EE] text-sm">check_circle</span>
-                    </div>
-                    <span className="text-[10px] text-[#64748b] mt-0.5">100% Allergen Safe</span>
-                  </button>
-                </div>
-              </div>
+              )}
             </div>
 
             {/* Real-time Scan Feed */}
             <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-xs space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-bold text-[#0f172a]">Live Scan Feed</h3>
-                  <span className="px-2 py-0.5 rounded-full bg-slate-100 font-mono-tech text-[10px] text-[#64748b]">
+                  <h3 className="text-sm font-bold text-[#0f172a]">Recent Scans</h3>
+                  <span className="px-2 py-0.5 rounded-full bg-slate-100 text-[10px] text-[#64748b]">
                     {scanLogs.length} logs
                   </span>
                 </div>
                 <button
                   onClick={clearScanLogs}
-                  className="font-mono-tech text-[10px] uppercase font-bold text-[#64748b] hover:text-[#0f172a]"
+                  className="text-[10px] uppercase font-bold text-[#64748b] hover:text-[#0f172a]"
                 >
                   Clear
                 </button>
@@ -844,13 +771,13 @@ export const ScannerScreen: React.FC = () => {
                       </div>
                       <div className="min-w-0">
                         <span className="text-xs font-bold text-[#0f172a] truncate block">{log.productName}</span>
-                        <span className="text-[10px] text-[#64748b] font-mono-tech block">
+                        <span className="text-[10px] text-[#64748b] block">
                           UPC {log.barcode} • {log.timestamp}
                         </span>
                       </div>
                     </div>
                     <span
-                      className={`font-mono-tech text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
                         log.verdict === 'HAZARD'
                           ? 'bg-[#e11d48] text-white'
                           : log.verdict === 'WARNING'
@@ -864,86 +791,78 @@ export const ScannerScreen: React.FC = () => {
                 ))}
               </div>
 
-              <div className="pt-2 flex items-center justify-between text-[11px] text-[#64748b]">
-                <span className="flex items-center gap-1">
-                  <span className="material-symbols-outlined text-sm text-[#5379EE]">sync</span>
-                  <span>Syncing to Dietary History</span>
-                </span>
-                <span className="text-[#5379EE] font-bold">Cloud Encrypted</span>
-              </div>
             </div>
           </div>
         </div>
       </div>
 
       {/* Immediate Detection Modal Result */}
-      {detectionModalProduct && (
+      {detectionModalProduct && detectionResult && (
         <div className="fixed inset-0 z-50 bg-[#0f172a]/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
           <div className="bg-white max-w-md w-full rounded-3xl shadow-2xl p-6 flex flex-col gap-4 border border-slate-100">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <div className="flex items-center gap-2.5">
-                <div
-                  className={`w-9 h-9 rounded-full flex items-center justify-center ${
-                    detectionModalProduct.allergensDetected.length > 0
-                      ? 'bg-[#fff1f2] text-[#e11d48]'
-                      : 'bg-[#EEF2FF] text-[#2563EB]'
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-lg">
-                    {detectionModalProduct.allergensDetected.length > 0 ? 'warning' : 'verified'}
-                  </span>
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${verdictStyle.badge}`}>
+                  <span className="material-symbols-outlined text-lg">{verdictStyle.icon}</span>
                 </div>
-                <div>
-                  <span className="font-mono-tech text-[10px] text-[#64748b] uppercase">Detection Verdict</span>
-                  <h3 className="text-sm font-bold text-[#0f172a] truncate max-w-[200px]">
-                    {detectionModalProduct.name}
-                  </h3>
+                <div className="min-w-0">
+                  <span className="text-[10px] text-[#64748b] uppercase">Scan Result</span>
+                  <h3 className="text-sm font-bold text-[#0f172a] truncate">{detectionModalProduct.name}</h3>
                 </div>
               </div>
               <button
                 onClick={() => setDetectionModalProduct(null)}
-                className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-[#64748b] hover:text-[#0f172a]"
+                aria-label="Close"
+                className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-[#64748b] hover:text-[#0f172a] shrink-0"
               >
                 <span className="material-symbols-outlined text-base">close</span>
               </button>
             </div>
 
-            <div
-              className={`p-3.5 rounded-2xl flex items-center gap-3 ${
-                detectionModalProduct.allergensDetected.length > 0
-                  ? 'bg-[#fff1f2] text-[#e11d48]'
-                  : 'bg-[#EEF2FF] text-[#2563EB]'
-              }`}
-            >
-              <span className="material-symbols-outlined text-2xl">
-                {detectionModalProduct.allergensDetected.length > 0 ? 'report' : 'check_circle'}
-              </span>
-              <div className="text-xs">
-                <span className="font-bold block">
-                  {detectionModalProduct.allergensDetected.length > 0
-                    ? 'Allergen Conflict Detected'
-                    : '100% Free of Target Allergens'}
-                </span>
-                <span>
-                  {detectionModalProduct.allergensDetected.length > 0
-                    ? `Contains: ${detectionModalProduct.allergensDetected.join(', ')}`
-                    : 'Zero peanuts, gluten, dairy, or soy identified.'}
-                </span>
+            <div className={`p-3.5 rounded-2xl flex items-start gap-3 ${verdictStyle.badge}`}>
+              <span className="material-symbols-outlined text-2xl">{verdictStyle.icon}</span>
+              <div className="text-xs space-y-1">
+                <span className="font-bold block">{verdictStyle.title}</span>
+                <span className="block">{verdictDetail}</span>
+                {detectionResult.watchlistHits.length > 0 && (
+                  <span className="block">On your watchlist: {detectionResult.watchlistHits.join(', ')}</span>
+                )}
+                {detectionResult.policyHits.length > 0 && (
+                  <span className="block">
+                    Flagged additives: {detectionResult.policyHits.map((p) => `${p.name} (${p.eCode})`).join(', ')}
+                  </span>
+                )}
+                {detectionResult.dietFlags.map((flag) => (
+                  <span key={flag.diet} className="block">
+                    {flag.diet}: {flag.reason}
+                  </span>
+                ))}
               </div>
             </div>
 
+            {!detectionModalProduct.isVerified && (
+              <p className="text-[11px] text-[#92400e] bg-[#fffbeb] border border-[#fde68a] rounded-xl p-2.5 leading-relaxed">
+                This record was imported automatically{detectionModalProduct.dataSource ? ` from ${detectionModalProduct.dataSource}` : ''} and
+                has not been reviewed. Always check the package label.
+              </p>
+            )}
+
             <div className="space-y-1.5 text-xs text-[#64748b]">
               <div className="flex justify-between">
-                <span>Barcode Scanned:</span>
-                <span className="font-mono-tech font-bold text-[#0f172a]">{detectionModalProduct.barcode}</span>
+                <span>Barcode:</span>
+                <span className="font-bold text-[#0f172a]">{detectionModalProduct.barcode}</span>
               </div>
               <div className="flex justify-between">
-                <span>Nutri-Score Rating:</span>
-                <span className="font-mono-tech font-bold text-[#2563EB]">Grade {detectionModalProduct.nutriScore}</span>
+                <span>Nutri-Score:</span>
+                <span className="font-bold text-[#2563EB]">
+                  {hasGap(detectionModalProduct, 'nutriScore') ? 'Not rated' : `Grade ${detectionModalProduct.nutriScore}`}
+                </span>
               </div>
               <div className="flex justify-between">
-                <span>Processing Scale:</span>
-                <span className="font-mono-tech text-[#0f172a]">NOVA Group {detectionModalProduct.novaGroup}</span>
+                <span>Processing level:</span>
+                <span className="text-[#0f172a]">
+                  {hasGap(detectionModalProduct, 'nova') ? 'Not rated' : `NOVA Group ${detectionModalProduct.novaGroup}`}
+                </span>
               </div>
             </div>
 
@@ -954,14 +873,14 @@ export const ScannerScreen: React.FC = () => {
                   setActiveTab('product-analysis');
                   setDetectionModalProduct(null);
                 }}
-                className="flex-1 h-11 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white font-mono-tech text-xs font-bold transition-all flex items-center justify-center gap-1 shadow-sm"
+                className="flex-1 h-11 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white text-xs font-bold transition-all flex items-center justify-center gap-1 shadow-sm"
               >
-                <span>Open Ingredient Deep-Dive</span>
+                <span>Open Full Analysis</span>
                 <span className="material-symbols-outlined text-sm">arrow_forward</span>
               </button>
               <button
                 onClick={() => setDetectionModalProduct(null)}
-                className="px-5 h-11 rounded-full bg-slate-100 hover:bg-slate-200 text-[#0f172a] font-mono-tech text-xs font-bold transition-colors"
+                className="px-5 h-11 rounded-full bg-slate-100 hover:bg-slate-200 text-[#0f172a] text-xs font-bold transition-colors"
               >
                 Dismiss
               </button>
@@ -980,7 +899,7 @@ export const ScannerScreen: React.FC = () => {
                   <span className="material-symbols-outlined text-lg">search_off</span>
                 </div>
                 <div>
-                  <span className="font-mono-tech text-[10px] text-[#64748b] uppercase">Barcode Detected</span>
+                  <span className="text-[10px] text-[#64748b] uppercase">Barcode Detected</span>
                   <h3 className="text-sm font-bold text-[#0f172a]">Product Not in Database</h3>
                 </div>
               </div>
@@ -999,13 +918,13 @@ export const ScannerScreen: React.FC = () => {
 
             <div className="flex justify-between text-xs text-[#64748b]">
               <span>Barcode Scanned:</span>
-              <span className="font-mono-tech font-bold text-[#0f172a]">{notFoundCode}</span>
+              <span className="font-bold text-[#0f172a]">{notFoundCode}</span>
             </div>
 
             <div className="flex gap-2 pt-2">
               <button
                 onClick={() => setNotFoundCode(null)}
-                className="flex-1 h-11 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white font-mono-tech text-xs font-bold transition-all flex items-center justify-center gap-1 shadow-sm"
+                className="flex-1 h-11 rounded-full bg-[#5379EE] hover:bg-[#4368DD] text-white text-xs font-bold transition-all flex items-center justify-center gap-1 shadow-sm"
               >
                 <span className="material-symbols-outlined text-sm">barcode_scanner</span>
                 <span>Scan Another</span>

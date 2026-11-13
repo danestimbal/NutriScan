@@ -28,7 +28,7 @@ export const PWAInstallButton: React.FC<{
     return (
       <button
         onClick={install}
-        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white text-[#5379EE] hover:bg-white/90 font-mono-tech text-xs font-bold transition-all shadow-sm active:scale-95 ${className}`}
+        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white text-[#5379EE] hover:bg-white/90 text-xs font-bold transition-all shadow-sm active:scale-95 ${className}`}
       >
         <span className="material-symbols-outlined text-sm">install_mobile</span>
         <span>Install PWA</span>
@@ -48,7 +48,7 @@ export const PWAInstallButton: React.FC<{
         ) : (
           <button
             onClick={() => setShowIOSGuide(true)}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/20 text-white hover:bg-white/30 border border-white/30 font-mono-tech text-xs font-bold transition-colors ${className}`}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/20 text-white hover:bg-white/30 border border-white/30 text-xs font-bold transition-colors ${className}`}
           >
             <span className="material-symbols-outlined text-sm">add_to_home_screen</span>
             <span>Add to Home Screen</span>
@@ -99,7 +99,7 @@ export const PWAInstallButton: React.FC<{
   return (
     <button
       onClick={handleFallbackInstall}
-      className={`inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white/15 hover:bg-white/25 text-white border border-white/20 font-mono-tech text-xs font-bold transition-colors ${className}`}
+      className={`inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white/15 hover:bg-white/25 text-white border border-white/20 text-xs font-bold transition-colors ${className}`}
       title="Install PWA on device"
     >
       <span className="material-symbols-outlined text-sm">install_mobile</span>
